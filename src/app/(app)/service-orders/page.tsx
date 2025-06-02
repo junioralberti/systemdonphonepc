@@ -213,7 +213,7 @@ export default function ServiceOrdersPage() {
       grandTotalValue: grandTotalNum,
     };
     setServiceOrders([...serviceOrders, newOrder]);
-    toast({ title: "O.S. Criada!", description: `A Ordem de Serviço ${newOsNumber} foi registrada.`});
+    toast({ title: "Nova O.S. Criada", description: `A Ordem de Serviço ${newOsNumber} foi registrada com sucesso.`});
     resetFormFields();
     setIsNewServiceOrderDialogOpen(false);
     console.log("Nova ordem de serviço criada (simulada):", newOrder);
@@ -756,4 +756,3 @@ export default function ServiceOrdersPage() {
     </div>
   );
 }
-

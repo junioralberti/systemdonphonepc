@@ -57,7 +57,7 @@ export default function UsersPage() {
     mutationFn: (newUserData: UserDataToSave) => addUser(newUserData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast({ title: "Sucesso!", description: "Usuário adicionado com sucesso." });
+      toast({ title: "Usuário Adicionado", description: "Novo usuário adicionado com sucesso." });
       setIsAddUserDialogOpen(false);
     },
     onError: (error: Error) => {

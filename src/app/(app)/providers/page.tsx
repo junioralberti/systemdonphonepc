@@ -42,7 +42,7 @@ export default function ProvidersPage() {
     mutationFn: (newProvider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => addProvider(newProvider),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["providers"] });
-      toast({ title: "Sucesso!", description: "Fornecedor adicionado com sucesso." });
+      toast({ title: "Fornecedor Adicionado", description: "Novo fornecedor adicionado com sucesso." });
       setIsAddProviderDialogOpen(false);
     },
     onError: (error: Error) => {

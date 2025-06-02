@@ -42,7 +42,7 @@ export default function ProductsPage() {
     mutationFn: (newProduct: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => addProduct(newProduct),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast({ title: "Sucesso!", description: "Produto adicionado com sucesso." });
+      toast({ title: "Produto Adicionado", description: "Novo produto adicionado com sucesso." });
       setIsAddProductDialogOpen(false);
     },
     onError: (error: Error) => {

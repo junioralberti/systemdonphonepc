@@ -42,7 +42,7 @@ export default function ClientsPage() {
     mutationFn: (newClient: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => addClient(newClient),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
-      toast({ title: "Sucesso!", description: "Cliente adicionado com sucesso." });
+      toast({ title: "Cliente Adicionado", description: "Novo cliente adicionado com sucesso." });
       setIsAddDialogOpen(false);
     },
     onError: (error: Error) => {
