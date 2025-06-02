@@ -12,7 +12,7 @@ import {
   BrainCircuit, // Or Sparkles
   LogOut,
   Settings,
-  Calculator, // Adicionado
+  // Calculator icon is kept for the header, but not for a nav item itself
 } from 'lucide-react';
 
 export interface NavItem {
@@ -69,11 +69,6 @@ export const navItems: NavItem[] = [
     icon: BarChart3,
   },
   {
-    title: 'Calculadora', // Novo item
-    href: '/calculadora',
-    icon: Calculator,
-  },
-  {
     title: 'Diagnóstico IA',
     href: '/ai-diagnostics',
     icon: BrainCircuit,
@@ -86,4 +81,3 @@ export const navItems: NavItem[] = [
     isBottom: true,
   },
 ];
-
