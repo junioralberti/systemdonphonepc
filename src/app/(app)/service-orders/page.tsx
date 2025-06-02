@@ -234,7 +234,90 @@ export default function ServiceOrdersPage() {
 
   const handlePrintOS = (order: Partial<ServiceOrder>) => {
     console.log("Simulando impressão da OS:", order);
-    alert(`Simulando impressão da OS: ${order.osNumber}\nCliente: ${order.clientName}\nTotal: R$ ${order.grandTotalValue?.toFixed(2)}\nEm breve esta funcionalidade abrirá uma via para impressão.`);
+    // This could be expanded to open a new window with a printable layout
+    // For now, it uses alert and console.log
+    
+    let printContent = `----------------------------------------\n`;
+    printContent += `       ORDEM DE SERVIÇO: ${order.osNumber}\n`;
+    printContent += `----------------------------------------\n`;
+    printContent += `Data Abertura: ${order.openingDate}\n`;
+    if(order.deliveryForecastDate) {
+      const date = new Date(order.deliveryForecastDate);
+      const formattedDate = `${('0' + (date.getDate() + 1)).slice(-2)}/${('0' + (date.getMonth() + 1)).slice(-2)}/${date.getFullYear()}`;
+      printContent += `Previsão Entrega: ${formattedDate}\n`;
+    }
+    printContent += `Status: ${order.status}\n`;
+    if(order.responsibleTechnicianId) {
+        const tech = mockTechnicians.find(t => t.id === order.responsibleTechnicianId);
+        printContent += `Técnico: ${tech ? tech.name : 'N/A'}\n`;
+    }
+    printContent += `\n--- Cliente ---\n`;
+    printContent += `Nome: ${order.clientName}\n`;
+    if(order.clientCpfCnpj) printContent += `CPF/CNPJ: ${order.clientCpfCnpj}\n`;
+    if(order.clientPhone) printContent += `Telefone: ${order.clientPhone}\n`;
+    if(order.clientEmail) printContent += `E-mail: ${order.clientEmail}\n`;
+    
+    printContent += `\n--- Aparelho ---\n`;
+    if(order.deviceType) printContent += `Tipo: ${order.deviceType}\n`;
+    printContent += `Marca/Modelo: ${order.deviceBrandModel}\n`;
+    if(order.deviceImeiSerial) printContent += `IMEI/Série: ${order.deviceImeiSerial}\n`;
+    if(order.deviceColor) printContent += `Cor: ${order.deviceColor}\n`;
+    if(order.deviceAccessories) printContent += `Acessórios: ${order.deviceAccessories}\n`;
+
+    printContent += `\n--- Problema ---\n`;
+    printContent += `Relatado: ${order.problemReportedByClient}\n`;
+    if(order.technicalDiagnosis) printContent += `Diagnóstico Técnico: ${order.technicalDiagnosis}\n`;
+    
+    if(order.servicesPerformedDescription || order.partsUsedDescription) {
+      printContent += `\n--- Serviços e Peças ---\n`;
+      if(order.servicesPerformedDescription) printContent += `Serviços: ${order.servicesPerformedDescription}\n`;
+      if(order.partsUsedDescription) printContent += `Peças: ${order.partsUsedDescription}\n`;
+    }
+
+    if(order.serviceManualValue !== undefined && order.serviceManualValue > 0) {
+        printContent += `\nValor do Serviço: R$ ${order.serviceManualValue.toFixed(2).replace('.', ',')}\n`;
+    }
+
+    if (order.additionalSoldProducts && order.additionalSoldProducts.length > 0) {
+        printContent += `\n--- Produtos Adicionais ---\n`;
+        order.additionalSoldProducts.forEach(prod => {
+            printContent += `${prod.name} (Qtd: ${prod.quantity}, Unit: R$ ${prod.unitPrice.toFixed(2).replace('.', ',')}) = R$ ${prod.totalPrice.toFixed(2).replace('.', ',')}\n`;
+        });
+    }
+    
+    printContent += `\n----------------------------------------\n`;
+    printContent += `VALOR TOTAL: R$ ${order.grandTotalValue?.toFixed(2).replace('.', ',') || '0,00'}\n`;
+    printContent += `----------------------------------------\n`;
+    if(order.internalObservations) printContent += `\nObs. Internas: ${order.internalObservations}\n`;
+
+    // For a real print, you'd open a new window and write this content to it, then call window.print()
+    // window.print() on the main window is usually blocked or opens the whole page for printing.
+    
+    const printWindow = window.open('', '_blank', 'height=600,width=800');
+    if (printWindow) {
+        printWindow.document.write('<html lang="pt-BR"><head><title>Imprimir OS</title>');
+        printWindow.document.write('<style> body { font-family: "Courier New", Courier, monospace; white-space: pre-wrap; line-height: 1.4; font-size: 10pt; margin: 20px;} table { width: 100%; border-collapse: collapse; margin-bottom: 10px;} th, td { border: 1px solid #ccc; padding: 4px; text-align: left;} .total { font-weight: bold; } </style>');
+        printContent = printContent.replace(/\n/g, '<br>'); // Basic HTML formatting
+        
+        // Simpler HTML structure for the print content
+        let htmlContent = `<pre>${printContent}</pre>`; // Using <pre> for preserving whitespace and newlines
+        
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(htmlContent);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.focus(); // Necessary for some browsers.
+        
+        // Timeout to allow content to load before printing
+        setTimeout(() => {
+          printWindow.print();
+          // printWindow.close(); // Optionally close window after print dialog
+        }, 500);
+
+    } else {
+        alert("Por favor, desabilite o bloqueador de pop-ups para imprimir.");
+        console.log("Conteúdo da Impressão:\n", printContent);
+    }
   };
   
   const getStatusColor = (status: ServiceOrderStatus) => {
@@ -594,9 +677,12 @@ export default function ServiceOrdersPage() {
                         </span>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">{os.openingDate}</TableCell>
-                      <TableCell className="hidden lg:table-cell">{os.deliveryForecastDate || "N/D"}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{os.deliveryForecastDate ? new Date(os.deliveryForecastDate + 'T00:00:00').toLocaleDateString('pt-BR') : "N/D"}</TableCell>
                       <TableCell className="hidden xl:table-cell text-right">{os.grandTotalValue?.toFixed(2).replace('.', ',') || "0,00"}</TableCell>
                       <TableCell className="text-right space-x-1 sm:space-x-2">
+                        <Button variant="outline" size="icon" onClick={() => handlePrintOS(os)} aria-label="Imprimir ordem de serviço">
+                          <Printer className="h-4 w-4" />
+                        </Button>
                         <Button variant="outline" size="icon" onClick={() => alert(`Visualizar/Editar OS ${os.osNumber} - funcionalidade pendente`)} aria-label="Editar ordem de serviço">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -615,3 +701,4 @@ export default function ServiceOrdersPage() {
     </div>
   );
 }
+
