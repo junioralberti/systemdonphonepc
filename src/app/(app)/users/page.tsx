@@ -16,8 +16,12 @@ import type { User } from "@/lib/schemas/user";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Define um tipo para os dados que serão realmente salvos, omitindo a senha.
+type UserDataToSave = Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'password' | 'confirmPassword'>;
+
+
 export default function UsersPage() {
-  const { userRole, isAuthenticated } = useAuth(); // Assuming useAuth provides current user's ID if needed for self-deletion check
+  const { userRole, isAuthenticated } = useAuth(); 
   const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -26,7 +30,6 @@ export default function UsersPage() {
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
-  // Redirect if not admin or not authenticated
   useEffect(() => {
     if (!isAuthenticated || userRole !== 'admin') {
       router.push('/dashboard');
@@ -36,7 +39,7 @@ export default function UsersPage() {
   const { data: users, isLoading: isLoadingUsers, error: usersError, refetch: refetchUsers } = useQuery<User[], Error>({
     queryKey: ["users"],
     queryFn: getUsers,
-    enabled: isAuthenticated && userRole === 'admin', // Only fetch if admin
+    enabled: isAuthenticated && userRole === 'admin', 
   });
 
   useEffect(() => {
@@ -51,7 +54,7 @@ export default function UsersPage() {
   }, [usersError, toast]);
 
   const addUserMutation = useMutation({
-    mutationFn: (newUserData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>) => addUser(newUserData),
+    mutationFn: (newUserData: UserDataToSave) => addUser(newUserData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({ title: "Sucesso!", description: "Usuário adicionado com sucesso." });
@@ -63,7 +66,7 @@ export default function UsersPage() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Omit<User, 'id' | 'createdAt'>> }) => updateUser(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<UserDataToSave> }) => updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({ title: "Sucesso!", description: "Usuário atualizado com sucesso." });
@@ -87,21 +90,18 @@ export default function UsersPage() {
   });
 
   const handleAddUser = async (data: User) => {
-    const { id, createdAt, updatedAt, ...userData } = data;
-    // In a real scenario, password handling and Firebase Auth user creation would be here.
-    // For this Firestore-only example, we directly add.
-    await addUserMutation.mutateAsync(userData);
+    // Extrai apenas os campos que queremos salvar, omitindo senhas e campos de controle.
+    const { id, createdAt, updatedAt, password, confirmPassword, ...userDataToSave } = data;
+    await addUserMutation.mutateAsync(userDataToSave);
   };
 
   const handleUpdateUser = async (data: User) => {
     if (!editingUser || !editingUser.id) return;
-    const { id, createdAt, updatedAt, ...userData } = data;
-    await updateUserMutation.mutateAsync({ id: editingUser.id, data: userData });
+    const { id, createdAt, updatedAt, password, confirmPassword, ...userDataToSave } = data;
+    await updateUserMutation.mutateAsync({ id: editingUser.id, data: userDataToSave });
   };
 
   const handleDeleteUser = async (userId: string) => {
-    // Consider adding a check here if current user is trying to delete themselves,
-    // although the table button might be disabled.
     await deleteUserMutation.mutateAsync(userId);
   };
 
@@ -128,13 +128,10 @@ export default function UsersPage() {
     </div>
   );
 
-  // This early return handles redirection and loading state for admin check
   if (!isAuthenticated || userRole !== 'admin') {
-    if (!isAuthenticated && userRole === null) { // Still loading auth state
+    if (!isAuthenticated && userRole === null) { 
       return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /> <p className="ml-2">Carregando...</p></div>;
     }
-    // If definitely not admin or not authenticated, show access denied before attempting to render page content.
-    // The useEffect above will handle the redirect. This just prevents rendering the rest.
     return (
        <div className="flex flex-col items-center justify-center gap-4 p-6 h-[calc(100vh-theme(spacing.28))]">
         <ShieldAlert className="h-16 w-16 text-destructive" />
@@ -159,7 +156,7 @@ export default function UsersPage() {
             <DialogHeader>
               <DialogTitle>Adicionar Novo Usuário</DialogTitle>
               <DialogDescription>
-                Preencha os dados do novo usuário. A senha será definida em um passo posterior ou por e-mail (simulado).
+                Preencha os dados do novo usuário.
               </DialogDescription>
             </DialogHeader>
             <UserForm 
@@ -194,7 +191,6 @@ export default function UsersPage() {
               onEdit={openEditDialog} 
               onDelete={handleDeleteUser}
               isLoadingDeleteForId={deleteUserMutation.isPending ? deleteUserMutation.variables : null}
-              // currentUserId={auth.currentUser?.uid} // If you had Firebase auth.currentUser available
             />
           )}
         </CardContent>

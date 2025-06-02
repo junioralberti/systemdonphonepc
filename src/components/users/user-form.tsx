@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -31,13 +32,15 @@ export function UserForm({ onSubmit, defaultValues, isEditing = false, isLoading
       name: "",
       email: "",
       role: "user",
+      password: "",
+      confirmPassword: "",
     },
   });
 
   const handleFormSubmit = async (data: User) => {
     await onSubmit(data);
     if (!isEditing && !isLoading) {
-        form.reset({ name: "", email: "", role: "user" });
+        form.reset({ name: "", email: "", role: "user", password: "", confirmPassword: "" });
     }
   };
 
@@ -70,6 +73,39 @@ export function UserForm({ onSubmit, defaultValues, isEditing = false, isLoading
             </FormItem>
           )}
         />
+        {!isEditing && (
+          <>
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Senha</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="Digite a senha" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirmar Senha</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="Confirme a senha" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormDescription className="text-xs">
+              Em um ambiente de produção, o usuário normalmente receberia um e-mail para definir sua senha ou a conta seria criada diretamente no sistema de autenticação.
+            </FormDescription>
+          </>
+        )}
         <FormField
           control={form.control}
           name="role"
