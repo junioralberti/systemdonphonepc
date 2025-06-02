@@ -35,7 +35,7 @@ interface ServiceOrder {
   openingDate: string; // Data/hora automático
   deliveryForecastDate?: string; // Definido pelo técnico
   status: ServiceOrderStatus;
-  responsibleTechnicianName?: string; // Alterado de Id para Name
+  responsibleTechnicianName?: string;
 
   // Dados do Cliente
   clientName: string; 
@@ -75,7 +75,7 @@ export default function ServiceOrdersPage() {
   const [openingDate, setOpeningDate] = useState(""); 
   const [deliveryForecastDate, setDeliveryForecastDate] = useState("");
   const [status, setStatus] = useState<ServiceOrderStatus>("Aberta");
-  const [responsibleTechnicianName, setResponsibleTechnicianName] = useState(""); // Alterado de Id para Name
+  const [responsibleTechnicianName, setResponsibleTechnicianName] = useState("");
 
   const [clientName, setClientName] = useState("");
   const [clientCpfCnpj, setClientCpfCnpj] = useState("");
@@ -107,7 +107,7 @@ export default function ServiceOrdersPage() {
   const resetFormFields = () => {
     setDeliveryForecastDate("");
     setStatus("Aberta");
-    setResponsibleTechnicianName(""); // Alterado de Id para Name
+    setResponsibleTechnicianName("");
     setClientName("");
     setClientCpfCnpj("");
     setClientPhone("");
@@ -193,7 +193,7 @@ export default function ServiceOrdersPage() {
       openingDate: newOpeningDate,
       deliveryForecastDate,
       status,
-      responsibleTechnicianName, // Alterado de Id para Name
+      responsibleTechnicianName,
       clientName,
       clientCpfCnpj,
       clientPhone,
@@ -226,80 +226,151 @@ export default function ServiceOrdersPage() {
   };
 
   const handlePrintOS = (order: Partial<ServiceOrder>) => {
-    console.log("Simulando impressão da OS:", order);
-        
-    let printContent = `----------------------------------------\n`;
-    printContent += `       ORDEM DE SERVIÇO: ${order.osNumber}\n`;
-    printContent += `----------------------------------------\n`;
-    printContent += `Data Abertura: ${order.openingDate}\n`;
-    if(order.deliveryForecastDate) {
-      const dateParts = order.deliveryForecastDate.split('-'); // yyyy-mm-dd
-      const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-      printContent += `Previsão Entrega: ${formattedDate}\n`;
-    }
-    printContent += `Status: ${order.status}\n`;
-    if(order.responsibleTechnicianName) { // Alterado de Id para Name
-        printContent += `Técnico: ${order.responsibleTechnicianName}\n`; // Usar diretamente o nome
-    }
-    printContent += `\n--- Cliente ---\n`;
-    printContent += `Nome: ${order.clientName}\n`;
-    if(order.clientCpfCnpj) printContent += `CPF/CNPJ: ${order.clientCpfCnpj}\n`;
-    if(order.clientPhone) printContent += `Telefone: ${order.clientPhone}\n`;
-    if(order.clientEmail) printContent += `E-mail: ${order.clientEmail}\n`;
-    
-    printContent += `\n--- Aparelho ---\n`;
-    if(order.deviceType) printContent += `Tipo: ${order.deviceType}\n`;
-    printContent += `Marca/Modelo: ${order.deviceBrandModel}\n`;
-    if(order.deviceImeiSerial) printContent += `IMEI/Série: ${order.deviceImeiSerial}\n`;
-    if(order.deviceColor) printContent += `Cor: ${order.deviceColor}\n`;
-    if(order.deviceAccessories) printContent += `Acessórios: ${order.deviceAccessories}\n`;
+    // Simulação de dados do estabelecimento - Em um app real, isso viria do Firestore/config
+    const establishmentData = {
+      name: "DonPhone Assistência Técnica (Exemplo)",
+      address: "Rua das Palmeiras, 123, Centro, Cidade Exemplo - EX",
+      cnpj: "00.000.000/0001-00",
+      phone: "(00) 1234-5678",
+      email: "contato@donphoneexemplo.com",
+      logoUrl: "/donphone-logo.png" // Certifique-se que este logo existe na pasta public
+    };
 
-    printContent += `\n--- Problema ---\n`;
-    printContent += `Relatado: ${order.problemReportedByClient}\n`;
-    if(order.technicalDiagnosis) printContent += `Diagnóstico Técnico: ${order.technicalDiagnosis}\n`;
-    
-    if(order.servicesPerformedDescription || order.partsUsedDescription) {
-      printContent += `\n--- Serviços e Peças ---\n`;
-      if(order.servicesPerformedDescription) printContent += `Serviços: ${order.servicesPerformedDescription}\n`;
-      if(order.partsUsedDescription) printContent += `Peças: ${order.partsUsedDescription}\n`;
-    }
-
-    if(order.serviceManualValue !== undefined && order.serviceManualValue > 0) {
-        printContent += `\nValor do Serviço: R$ ${order.serviceManualValue.toFixed(2).replace('.', ',')}\n`;
-    }
-
-    if (order.additionalSoldProducts && order.additionalSoldProducts.length > 0) {
-        printContent += `\n--- Produtos Adicionais ---\n`;
-        order.additionalSoldProducts.forEach(prod => {
-            printContent += `${prod.name} (Qtd: ${prod.quantity}, Unit: R$ ${prod.unitPrice.toFixed(2).replace('.', ',')}) = R$ ${prod.totalPrice.toFixed(2).replace('.', ',')}\n`;
-        });
-    }
-    
-    printContent += `\n----------------------------------------\n`;
-    printContent += `VALOR TOTAL: R$ ${order.grandTotalValue?.toFixed(2).replace('.', ',') || '0,00'}\n`;
-    printContent += `----------------------------------------\n`;
-    if(order.internalObservations) printContent += `\nObs. Internas: ${order.internalObservations}\n`;
-
-    const printWindow = window.open('', '_blank', 'height=600,width=800');
+    const printWindow = window.open('', '_blank', 'height=700,width=800');
     if (printWindow) {
-        printWindow.document.write('<html lang="pt-BR"><head><title>Imprimir OS</title>');
-        printWindow.document.write('<style> body { font-family: "Courier New", Courier, monospace; white-space: pre-wrap; line-height: 1.4; font-size: 10pt; margin: 20px;} table { width: 100%; border-collapse: collapse; margin-bottom: 10px;} th, td { border: 1px solid #ccc; padding: 4px; text-align: left;} .total { font-weight: bold; } </style>');
-        
-        let htmlContent = `<pre>${printContent}</pre>`; 
-        
-        printWindow.document.write('</head><body>');
-        printWindow.document.write(htmlContent);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
-        printWindow.focus(); 
-        
-        setTimeout(() => {
-          printWindow.print();
-        }, 500);
+      printWindow.document.write('<html><head><title>Ordem de Serviço</title>');
+      printWindow.document.write('<style>');
+      printWindow.document.write(`
+        body { font-family: 'Arial', sans-serif; margin: 20px; font-size: 10pt; color: #333; }
+        .print-container { width: 100%; max-width: 700px; margin: auto; }
+        .establishment-header { display: flex; align-items: flex-start; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
+        .logo-container { margin-right: 20px; flex-shrink: 0; }
+        .logo-container img { max-height: 60px; max-width: 180px; object-fit: contain; }
+        .establishment-info { font-size: 9pt; line-height: 1.4; }
+        .establishment-info strong { font-size: 12pt; display: block; margin-bottom: 4px; color: #000; }
+        .section-title { font-size: 12pt; font-weight: bold; margin-top: 20px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #eee; color: #000; }
+        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 15px; margin-bottom: 15px; font-size: 9pt; }
+        .details-grid-full { display: grid; grid-template-columns: 1fr; gap: 4px; margin-bottom: 15px; font-size: 9pt; }
+        .details-grid div, .details-grid-full div { padding: 2px 0; }
+        .details-grid strong, .details-grid-full strong { color: #555; }
+        .products-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt; }
+        .products-table th, .products-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        .products-table th { background-color: #f2f2f2; font-weight: bold; }
+        .products-table .text-right { text-align: right; }
+        .products-table .text-center { text-align: center; }
+        .grand-total { text-align: right; font-size: 11pt; font-weight: bold; margin-top: 15px; padding-top:10px; border-top: 1px solid #ccc; }
+        .text-area-content { white-space: pre-wrap; padding: 5px; border: 1px solid #eee; background-color: #f9f9f9; border-radius: 3px; font-size: 9pt; margin-top: 3px; }
+        .signature-area { margin-top: 50px; padding-top: 20px; border-top: 1px dashed #aaa; text-align: center; font-size: 9pt; }
+        .signature-line { display: inline-block; width: 280px; border-bottom: 1px solid #333; margin-top: 40px; }
+        h1.os-title { text-align: center; font-size: 16pt; margin-bottom: 15px; color: #000;}
+      `);
+      printWindow.document.write('</style></head><body><div class="print-container">');
+
+      // Cabeçalho do Estabelecimento
+      printWindow.document.write('<div class="establishment-header">');
+      if (establishmentData.logoUrl) {
+        printWindow.document.write(`<div class="logo-container"><img src="${establishmentData.logoUrl}" alt="Logo do Estabelecimento" /></div>`);
+      }
+      printWindow.document.write('<div class="establishment-info">');
+      printWindow.document.write(`<strong>${establishmentData.name}</strong>`);
+      printWindow.document.write(`${establishmentData.address}<br/>`);
+      printWindow.document.write(`CNPJ: ${establishmentData.cnpj}<br/>`);
+      printWindow.document.write(`Telefone: ${establishmentData.phone} | E-mail: ${establishmentData.email}`);
+      printWindow.document.write('</div></div>');
+
+      printWindow.document.write(`<h1 class="os-title">ORDEM DE SERVIÇO Nº: ${order.osNumber || 'N/A'}</h1>`);
+
+      // Detalhes Gerais da OS
+      printWindow.document.write('<div class="section-title">Detalhes da OS</div>');
+      printWindow.document.write('<div class="details-grid">');
+      printWindow.document.write(`<div><strong>Data de Abertura:</strong> ${order.openingDate || 'N/A'}</div>`);
+      let formattedDeliveryDate = "N/A";
+      if (order.deliveryForecastDate) {
+        const dateParts = order.deliveryForecastDate.split('-'); // yyyy-mm-dd
+        if (dateParts.length === 3) {
+          formattedDeliveryDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+        }
+      }
+      printWindow.document.write(`<div><strong>Previsão de Entrega:</strong> ${formattedDeliveryDate}</div>`);
+      printWindow.document.write(`<div><strong>Status:</strong> ${order.status || 'N/A'}</div>`);
+      if (order.responsibleTechnicianName) {
+        printWindow.document.write(`<div><strong>Técnico Responsável:</strong> ${order.responsibleTechnicianName}</div>`);
+      }
+      printWindow.document.write('</div>');
+
+      // Dados do Cliente
+      printWindow.document.write('<div class="section-title">Dados do Cliente</div>');
+      printWindow.document.write('<div class="details-grid-full">');
+      printWindow.document.write(`<div><strong>Nome:</strong> ${order.clientName || 'N/A'}</div>`);
+      if (order.clientCpfCnpj) printWindow.document.write(`<div><strong>CPF/CNPJ:</strong> ${order.clientCpfCnpj}</div>`);
+      if (order.clientPhone) printWindow.document.write(`<div><strong>Telefone/WhatsApp:</strong> ${order.clientPhone}</div>`);
+      if (order.clientEmail) printWindow.document.write(`<div><strong>E-mail:</strong> ${order.clientEmail}</div>`);
+      printWindow.document.write('</div>');
+
+      // Informações do Aparelho
+      printWindow.document.write('<div class="section-title">Informações do Aparelho</div>');
+      printWindow.document.write('<div class="details-grid">');
+      if (order.deviceType) printWindow.document.write(`<div><strong>Tipo:</strong> ${order.deviceType}</div>`);
+      printWindow.document.write(`<div><strong>Marca/Modelo:</strong> ${order.deviceBrandModel || 'N/A'}</div>`);
+      if (order.deviceImeiSerial) printWindow.document.write(`<div><strong>IMEI/Nº Série:</strong> ${order.deviceImeiSerial}</div>`);
+      if (order.deviceColor) printWindow.document.write(`<div><strong>Cor:</strong> ${order.deviceColor}</div>`);
+      if (order.deviceAccessories) printWindow.document.write(`<div style="grid-column: span 2;"><strong>Acessórios Recebidos:</strong> ${order.deviceAccessories}</div>`);
+      printWindow.document.write('</div>');
+      
+      // Problemas e Diagnóstico
+      printWindow.document.write('<div class="section-title">Problemas e Diagnóstico</div>');
+      printWindow.document.write('<div class="details-grid-full">');
+      printWindow.document.write(`<div><strong>Defeito Informado pelo Cliente:</strong> <div class="text-area-content">${order.problemReportedByClient || 'N/A'}</div></div>`);
+      if (order.technicalDiagnosis) printWindow.document.write(`<div><strong>Diagnóstico Técnico:</strong> <div class="text-area-content">${order.technicalDiagnosis}</div></div>`);
+      if (order.internalObservations) printWindow.document.write(`<div><strong>Observações Internas:</strong> <div class="text-area-content">${order.internalObservations}</div></div>`);
+      printWindow.document.write('</div>');
+
+      // Serviços e Peças (Descritivo)
+      if (order.servicesPerformedDescription || order.partsUsedDescription) {
+        printWindow.document.write('<div class="section-title">Serviços Executados e Peças Utilizadas</div>');
+        printWindow.document.write('<div class="details-grid-full">');
+        if (order.servicesPerformedDescription) printWindow.document.write(`<div><strong>Serviços Executados:</strong> <div class="text-area-content">${order.servicesPerformedDescription}</div></div>`);
+        if (order.partsUsedDescription) printWindow.document.write(`<div><strong>Produtos/Peças Utilizadas:</strong> <div class="text-area-content">${order.partsUsedDescription}</div></div>`);
+        printWindow.document.write('</div>');
+      }
+      
+      // Valores
+      printWindow.document.write('<div class="section-title">Valores</div>');
+      printWindow.document.write('<div class="details-grid-full">');
+      printWindow.document.write(`<div><strong>Valor do Serviço:</strong> R$ ${(order.serviceManualValue !== undefined ? order.serviceManualValue.toFixed(2).replace('.', ',') : '0,00')}</div>`);
+      printWindow.document.write('</div>');
+
+      if (order.additionalSoldProducts && order.additionalSoldProducts.length > 0) {
+        printWindow.document.write('<div class="section-title" style="margin-top:10px; margin-bottom: 5px;">Produtos Adicionais Vendidos</div>');
+        printWindow.document.write('<table class="products-table"><thead><tr><th>Produto</th><th class="text-center">Qtd</th><th class="text-right">Preço Unit.</th><th class="text-right">Subtotal</th></tr></thead><tbody>');
+        order.additionalSoldProducts.forEach(prod => {
+          printWindow.document.write(`<tr>
+            <td>${prod.name}</td>
+            <td class="text-center">${prod.quantity}</td>
+            <td class="text-right">R$ ${prod.unitPrice.toFixed(2).replace('.', ',')}</td>
+            <td class="text-right">R$ ${prod.totalPrice.toFixed(2).replace('.', ',')}</td>
+          </tr>`);
+        });
+        printWindow.document.write('</tbody></table>');
+      }
+      
+      printWindow.document.write(`<div class="grand-total">VALOR TOTAL DA OS: R$ ${order.grandTotalValue?.toFixed(2).replace('.', ',') || '0,00'}</div>`);
+
+      // Área de Assinatura
+      printWindow.document.write('<div class="signature-area">');
+      printWindow.document.write('<div class="signature-line"></div>');
+      printWindow.document.write(`<div>Assinatura do Cliente (${order.clientName || ''})</div>`);
+      printWindow.document.write('</div>');
+
+      printWindow.document.write('</div></body></html>');
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
 
     } else {
-        alert("Por favor, desabilite o bloqueador de pop-ups para imprimir.");
-        console.log("Conteúdo da Impressão:\n", printContent);
+      alert("Por favor, desabilite o bloqueador de pop-ups para imprimir.");
     }
   };
   
@@ -369,8 +440,8 @@ export default function ServiceOrdersPage() {
                           <Label htmlFor="osTechnician">Técnico Responsável</Label>
                            <Input 
                                 id="osTechnician" 
-                                value={responsibleTechnicianName} // Alterado de Id para Name
-                                onChange={(e) => setResponsibleTechnicianName(e.target.value)} // Alterado de Id para Name
+                                value={responsibleTechnicianName}
+                                onChange={(e) => setResponsibleTechnicianName(e.target.value)}
                                 placeholder="Nome do técnico" 
                             />
                         </div>
@@ -601,7 +672,7 @@ export default function ServiceOrdersPage() {
                     id: "PREVIEW", 
                     osNumber: `OS-${Date.now().toString().slice(-6)}` , openingDate: new Date().toLocaleString('pt-BR'),
                     clientName, deviceBrandModel, problemReportedByClient, status, 
-                    deliveryForecastDate, responsibleTechnicianName, // Alterado de Id para Name
+                    deliveryForecastDate, responsibleTechnicianName,
                     clientCpfCnpj, clientPhone, clientEmail,
                     deviceType, deviceImeiSerial, deviceColor, deviceAccessories, technicalDiagnosis, internalObservations,
                     servicesPerformedDescription, partsUsedDescription,
