@@ -1,60 +1,115 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, Pencil, Trash2, TruckIcon } from "lucide-react";
-
-interface Provider {
-  id: string;
-  name: string;
-  contactPerson?: string;
-  email?: string;
-  phone?: string;
-}
+import { PlusCircle, Loader2, TruckIcon, AlertTriangle } from "lucide-react";
+import { ProviderForm } from "@/components/providers/provider-form";
+import { ProvidersTable } from "@/components/providers/providers-table";
+import { getProviders, addProvider, updateProvider, deleteProvider } from "@/services/providerService";
+import type { Provider } from "@/lib/schemas/provider";
+import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProvidersPage() {
   const [isAddProviderDialogOpen, setIsAddProviderDialogOpen] = useState(false);
-  const [providers, setProviders] = useState<Provider[]>([]); // Mock data
+  const [isEditProviderDialogOpen, setIsEditProviderDialogOpen] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   
-  // Form states for adding a new provider
-  const [newProviderName, setNewProviderName] = useState("");
-  const [newProviderContact, setNewProviderContact] = useState("");
-  const [newProviderEmail, setNewProviderEmail] = useState("");
-  const [newProviderPhone, setNewProviderPhone] = useState("");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  const handleAddProvider = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newProviderName) {
-      alert("O nome do fornecedor é obrigatório.");
-      return;
+  const { data: providers, isLoading: isLoadingProviders, error: providersError, refetch: refetchProviders } = useQuery<Provider[], Error>({
+    queryKey: ["providers"],
+    queryFn: getProviders,
+  });
+
+  useEffect(() => {
+    if (providersError) {
+      toast({
+        title: "Erro ao Carregar Fornecedores",
+        description: "Não foi possível buscar os dados dos fornecedores. Verifique sua conexão ou tente novamente.",
+        variant: "destructive",
+        duration: 10000,
+      });
     }
-    const newProvider: Provider = {
-      id: Date.now().toString(),
-      name: newProviderName,
-      contactPerson: newProviderContact,
-      email: newProviderEmail,
-      phone: newProviderPhone,
-    };
-    setProviders([...providers, newProvider]);
-    setNewProviderName("");
-    setNewProviderContact("");
-    setNewProviderEmail("");
-    setNewProviderPhone("");
-    setIsAddProviderDialogOpen(false);
-    console.log("Novo fornecedor adicionado (simulado):", newProvider);
+  }, [providersError, toast]);
+
+  const addProviderMutation = useMutation({
+    mutationFn: (newProvider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => addProvider(newProvider),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["providers"] });
+      toast({ title: "Sucesso!", description: "Fornecedor adicionado com sucesso." });
+      setIsAddProviderDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro", description: `Falha ao adicionar fornecedor: ${error.message}`, variant: "destructive" });
+    },
+  });
+
+  const updateProviderMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Omit<Provider, 'id' | 'createdAt'>> }) => updateProvider(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["providers"] });
+      toast({ title: "Sucesso!", description: "Fornecedor atualizado com sucesso." });
+      setIsEditProviderDialogOpen(false);
+      setEditingProvider(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro", description: `Falha ao atualizar fornecedor: ${error.message}`, variant: "destructive" });
+    },
+  });
+
+  const deleteProviderMutation = useMutation({
+    mutationFn: deleteProvider,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["providers"] });
+      toast({ title: "Sucesso!", description: "Fornecedor excluído com sucesso." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro", description: `Falha ao excluir fornecedor: ${error.message}`, variant: "destructive" });
+    },
+  });
+
+  const handleAddProvider = async (data: Provider) => {
+    const { id, createdAt, updatedAt, ...providerData } = data;
+    await addProviderMutation.mutateAsync(providerData);
   };
 
-  const handleDeleteProvider = (providerId: string) => {
-    setProviders(providers.filter(p => p.id !== providerId));
-    console.log("Fornecedor excluído (simulado):", providerId);
+  const handleUpdateProvider = async (data: Provider) => {
+    if (!editingProvider || !editingProvider.id) return;
+    const { id, createdAt, updatedAt, ...providerData } = data;
+    await updateProviderMutation.mutateAsync({ id: editingProvider.id, data: providerData });
   };
 
+  const handleDeleteProvider = async (providerId: string) => {
+    await deleteProviderMutation.mutateAsync(providerId);
+  };
+
+  const openEditDialog = (provider: Provider) => {
+    setEditingProvider(provider);
+    setIsEditProviderDialogOpen(true);
+  };
+  
+  const ProviderListSkeleton = () => (
+    <div className="space-y-3">
+      {[...Array(4)].map((_, i) => (
+         <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="space-y-1.5 w-full">
+            <Skeleton className="h-5 w-1/2 rounded" />
+            <Skeleton className="h-3 w-1/3 rounded" />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Skeleton className="h-9 w-9 rounded-md" />
+            <Skeleton className="h-9 w-9 rounded-md" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -71,75 +126,62 @@ export default function ProvidersPage() {
               <DialogTitle>Adicionar Novo Fornecedor</DialogTitle>
               <DialogDescription>Preencha os dados do novo fornecedor.</DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleAddProvider} className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="providerName">Nome do Fornecedor</Label>
-                <Input id="providerName" value={newProviderName} onChange={(e) => setNewProviderName(e.target.value)} placeholder="Ex: Distribuidora Peças Brasil" />
-              </div>
-              <div>
-                <Label htmlFor="providerContact">Pessoa de Contato (Opcional)</Label>
-                <Input id="providerContact" value={newProviderContact} onChange={(e) => setNewProviderContact(e.target.value)} placeholder="Ex: Carlos Silva" />
-              </div>
-              <div>
-                <Label htmlFor="providerEmail">E-mail (Opcional)</Label>
-                <Input id="providerEmail" type="email" value={newProviderEmail} onChange={(e) => setNewProviderEmail(e.target.value)} placeholder="Ex: contato@pecasbrasil.com" />
-              </div>
-              <div>
-                <Label htmlFor="providerPhone">Telefone (Opcional)</Label>
-                <Input id="providerPhone" value={newProviderPhone} onChange={(e) => setNewProviderPhone(e.target.value)} placeholder="Ex: (11) 98765-4321" />
-              </div>
-              <Button type="submit" className="w-full">Salvar Fornecedor</Button>
-            </form>
+            <ProviderForm 
+              onSubmit={handleAddProvider} 
+              isLoading={addProviderMutation.isPending} 
+            />
           </DialogContent>
         </Dialog>
       </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Lista de Fornecedores</CardTitle>
           <CardDescription>Gerencie seus fornecedores de peças e serviços.</CardDescription>
         </CardHeader>
         <CardContent>
-          {providers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-              <TruckIcon className="h-16 w-16 text-muted-foreground" />
-              <h3 className="text-xl font-semibold">Nenhum fornecedor encontrado</h3>
-              <p className="text-muted-foreground">Adicione um novo fornecedor para começar.</p>
+          {isLoadingProviders ? (
+             <ProviderListSkeleton />
+          ) : providersError ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-10 text-center text-destructive">
+              <AlertTriangle className="h-12 w-12" />
+              <p className="text-lg font-medium">Erro ao carregar fornecedores</p>
+              <p className="text-sm text-muted-foreground">{providersError.message}</p>
+              <Button onClick={() => refetchProviders()} className="mt-3" disabled={isLoadingProviders}>
+                {isLoadingProviders && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Tentar Novamente
+              </Button>
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead className="hidden md:table-cell">Contato</TableHead>
-                    <TableHead className="hidden sm:table-cell">E-mail</TableHead>
-                    <TableHead>Telefone</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {providers.map((provider) => (
-                    <TableRow key={provider.id}>
-                      <TableCell className="font-medium">{provider.name}</TableCell>
-                      <TableCell className="hidden md:table-cell">{provider.contactPerson || "-"}</TableCell>
-                      <TableCell className="hidden sm:table-cell">{provider.email || "-"}</TableCell>
-                      <TableCell>{provider.phone || "-"}</TableCell>
-                      <TableCell className="text-right space-x-1 sm:space-x-2">
-                        <Button variant="outline" size="icon" onClick={() => alert(`Editar ${provider.name} - funcionalidade pendente`)} aria-label="Editar fornecedor">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="icon" onClick={() => handleDeleteProvider(provider.id)} aria-label="Excluir fornecedor">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <ProvidersTable 
+              providers={providers || []} 
+              onEdit={openEditDialog} 
+              onDelete={handleDeleteProvider}
+              isLoadingDeleteForId={deleteProviderMutation.isPending ? deleteProviderMutation.variables : null}
+            />
           )}
         </CardContent>
       </Card>
+
+      {editingProvider && (
+        <Dialog open={isEditProviderDialogOpen} onOpenChange={(isOpen) => {
+          setIsEditProviderDialogOpen(isOpen);
+          if (!isOpen) setEditingProvider(null);
+        }}>
+          <DialogContent className="sm:max-w-[480px]">
+            <DialogHeader>
+              <DialogTitle>Editar Fornecedor</DialogTitle>
+               <DialogDescription>Atualize os dados do fornecedor selecionado.</DialogDescription>
+            </DialogHeader>
+            <ProviderForm 
+              onSubmit={handleUpdateProvider} 
+              defaultValues={editingProvider} 
+              isEditing 
+              isLoading={updateProviderMutation.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
