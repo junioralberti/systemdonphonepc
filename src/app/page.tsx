@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Phone } from 'lucide-react'; // Using Phone as a generic logo icon
+import Image from 'next/image';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('teste@donphone.com');
@@ -25,8 +25,14 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm shadow-xl">
         <CardHeader className="items-center text-center">
-          <div className="mb-4 rounded-full bg-primary p-3 text-primary-foreground">
-            <Phone size={32} />
+          <div className="mb-4 rounded-md bg-primary p-2 text-primary-foreground inline-block">
+            <Image 
+              src="/donphone-logo.png" 
+              alt="DonPhone Logo" 
+              width={48} 
+              height={48} 
+              data-ai-hint="company logo" 
+            />
           </div>
           <CardTitle className="font-headline text-3xl">Sistema DonPhone</CardTitle>
           <CardDescription>Por favor, entre para continuar</CardDescription>

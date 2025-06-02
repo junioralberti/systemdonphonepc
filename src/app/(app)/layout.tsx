@@ -22,7 +22,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Phone, LogOut, ChevronDown } from 'lucide-react';
+import { LogOut, ChevronDown } from 'lucide-react';
+import Image from 'next/image';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, logout, userRole } = useAuth();
@@ -49,7 +50,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar>
         <SidebarHeader className="p-4 border-b border-sidebar-border">
           <Link href="/dashboard" className="flex items-center gap-2 text-xl font-semibold text-primary">
-            <Phone className="h-7 w-7" />
+            <Image 
+              src="/donphone-logo.png" 
+              alt="DonPhone Logo" 
+              width={28} 
+              height={28} 
+              data-ai-hint="company logo"
+            />
             <span className="font-headline">DonPhone</span>
           </Link>
         </SidebarHeader>
