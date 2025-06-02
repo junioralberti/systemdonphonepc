@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogClose, DialogFooter } from "@/components/ui/dialog";
@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusCircle, Pencil, Trash2, FileText, Printer, UserPlus, Search } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, FileText, Printer, UserPlus, Search, MinusCircle, ShoppingCart, DollarSign } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
 
 // Definindo os tipos explicitamente para clareza
 type ServiceOrderStatus = "Aberta" | "Em andamento" | "Aguardando peça" | "Concluída" | "Entregue" | "Cancelada";
@@ -27,6 +28,13 @@ const mockTechnicians = [
   { id: "tech3", name: "Roberto Alves" },
 ];
 
+interface SoldProductItem {
+  tempId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
 
 interface ServiceOrder {
   id: string; // ID interno único, usado como key
@@ -37,41 +45,41 @@ interface ServiceOrder {
   responsibleTechnicianId?: string;
 
   // Dados do Cliente
-  clientName: string; // Nome do cliente (entrada direta por enquanto)
+  clientName: string; 
   clientCpfCnpj?: string;
   clientPhone?: string;
   clientEmail?: string;
-  // Endereço do cliente viria de um objeto Cliente selecionado, omitido por ora da OS direta
-
+  
   // Informações do Aparelho
   deviceType?: DeviceType;
   deviceBrandModel: string;
   deviceImeiSerial?: string;
   deviceColor?: string;
-  deviceAccessories?: string; // Ex: Fonte, cabo, fone, capinha
+  deviceAccessories?: string; 
 
   // Problemas e Diagnóstico
   problemReportedByClient: string;
-  technicalDiagnosis?: string; // Preenchido pelo técnico
-  internalObservations?: string; // Ex: Aguardando cliente aprovar orçamento
+  technicalDiagnosis?: string; 
+  internalObservations?: string; 
 
-  // Serviços e Peças (simplificado para Textarea por enquanto)
+  // Serviços e Peças
   servicesPerformedDescription?: string;
   partsUsedDescription?: string;
-
-  // Campos originais para compatibilidade, se necessário, mas idealmente usar os novos
-  // creationDate: string; // Substituído por openingDate
-  // problemDescription: string; // Substituído por problemReportedByClient
-  // deviceModel: string; // Substituído por deviceBrandModel
+  
+  // Novos campos de valor
+  serviceManualValue?: number;
+  additionalSoldProducts?: SoldProductItem[];
+  grandTotalValue?: number;
 }
 
 export default function ServiceOrdersPage() {
   const [isNewServiceOrderDialogOpen, setIsNewServiceOrderDialogOpen] = useState(false);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const { toast } = useToast();
   
   // Estados para o formulário de nova OS
-  const [osNumber, setOsNumber] = useState(""); // Será automático
-  const [openingDate, setOpeningDate] = useState(""); // Será automático
+  const [osNumber, setOsNumber] = useState(""); 
+  const [openingDate, setOpeningDate] = useState(""); 
   const [deliveryForecastDate, setDeliveryForecastDate] = useState("");
   const [status, setStatus] = useState<ServiceOrderStatus>("Aberta");
   const [responsibleTechnicianId, setResponsibleTechnicianId] = useState("");
@@ -94,6 +102,15 @@ export default function ServiceOrdersPage() {
   const [servicesPerformedDescription, setServicesPerformedDescription] = useState("");
   const [partsUsedDescription, setPartsUsedDescription] = useState("");
 
+  // Novos estados para valores e produtos adicionais
+  const [serviceManualValueInput, setServiceManualValueInput] = useState("");
+  const [soldProductsList, setSoldProductsList] = useState<SoldProductItem[]>([]);
+  const [currentProductNameInput, setCurrentProductNameInput] = useState("");
+  const [currentProductQtyInput, setCurrentProductQtyInput] = useState("1");
+  const [currentProductPriceInput, setCurrentProductPriceInput] = useState("");
+  const [grandTotalDisplay, setGrandTotalDisplay] = useState("0.00");
+
+
   const resetFormFields = () => {
     setDeliveryForecastDate("");
     setStatus("Aberta");
@@ -112,20 +129,73 @@ export default function ServiceOrdersPage() {
     setInternalObservations("");
     setServicesPerformedDescription("");
     setPartsUsedDescription("");
+    setServiceManualValueInput("");
+    setSoldProductsList([]);
+    setCurrentProductNameInput("");
+    setCurrentProductQtyInput("1");
+    setCurrentProductPriceInput("");
+    setGrandTotalDisplay("0.00");
   };
+
+  const handleAddSoldProduct = () => {
+    const name = currentProductNameInput.trim();
+    const quantity = parseInt(currentProductQtyInput, 10);
+    const unitPrice = parseFloat(currentProductPriceInput.replace(',', '.'));
+
+    if (!name || isNaN(quantity) || quantity <= 0 || isNaN(unitPrice) || unitPrice <= 0) {
+      toast({
+        title: "Produto Inválido",
+        description: "Por favor, preencha nome, quantidade válida e preço válido para o produto.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newProduct: SoldProductItem = {
+      tempId: `prod-${Date.now()}`,
+      name,
+      quantity,
+      unitPrice,
+      totalPrice: quantity * unitPrice,
+    };
+    setSoldProductsList(prev => [...prev, newProduct]);
+    setCurrentProductNameInput("");
+    setCurrentProductQtyInput("1");
+    setCurrentProductPriceInput("");
+    toast({ title: "Produto Adicionado", description: `${name} adicionado à OS.`});
+  };
+
+  const handleRemoveSoldProduct = (tempId: string) => {
+    setSoldProductsList(prev => prev.filter(p => p.tempId !== tempId));
+     toast({ title: "Produto Removido", description: "Produto removido da OS.", variant: "destructive" });
+  };
+
+  useEffect(() => {
+    const serviceValue = parseFloat(serviceManualValueInput.replace(',', '.')) || 0;
+    const productsTotal = soldProductsList.reduce((sum, prod) => sum + prod.totalPrice, 0);
+    const currentGrandTotal = serviceValue + productsTotal;
+    setGrandTotalDisplay(currentGrandTotal.toFixed(2).replace('.', ','));
+  }, [serviceManualValueInput, soldProductsList]);
+
 
   const handleCreateServiceOrder = (e: FormEvent) => {
     e.preventDefault();
     if (!clientName || !deviceBrandModel || !problemReportedByClient) {
-      alert("Os campos Cliente, Modelo do Aparelho e Defeito Informado são obrigatórios.");
+       toast({
+        title: "Campos Obrigatórios",
+        description: "Cliente, Modelo do Aparelho e Defeito Informado são obrigatórios.",
+        variant: "destructive",
+      });
       return;
     }
 
     const newOsNumber = `OS-${Date.now().toString().slice(-6)}`;
     const newOpeningDate = new Date().toLocaleString('pt-BR');
+    const serviceValueNum = parseFloat(serviceManualValueInput.replace(',', '.')) || 0;
+    const grandTotalNum = parseFloat(grandTotalDisplay.replace(',', '.')) || 0;
 
     const newOrder: ServiceOrder = {
-      id: newOsNumber, // Usando osNumber como ID único por simplicidade aqui
+      id: newOsNumber, 
       osNumber: newOsNumber,
       openingDate: newOpeningDate,
       deliveryForecastDate,
@@ -145,8 +215,12 @@ export default function ServiceOrdersPage() {
       internalObservations,
       servicesPerformedDescription,
       partsUsedDescription,
+      serviceManualValue: serviceValueNum,
+      additionalSoldProducts: soldProductsList,
+      grandTotalValue: grandTotalNum,
     };
     setServiceOrders([...serviceOrders, newOrder]);
+    toast({ title: "O.S. Criada!", description: `A Ordem de Serviço ${newOsNumber} foi registrada.`});
     resetFormFields();
     setIsNewServiceOrderDialogOpen(false);
     console.log("Nova ordem de serviço criada (simulada):", newOrder);
@@ -154,13 +228,13 @@ export default function ServiceOrdersPage() {
 
   const handleDeleteServiceOrder = (orderId: string) => {
     setServiceOrders(serviceOrders.filter(os => os.id !== orderId));
+    toast({ title: "O.S. Excluída", description: `A Ordem de Serviço ${orderId} foi excluída.`, variant: "destructive"});
     console.log("Ordem de serviço excluída (simulada):", orderId);
   };
 
-  const handlePrintOS = (order: ServiceOrder) => {
+  const handlePrintOS = (order: Partial<ServiceOrder>) => {
     console.log("Simulando impressão da OS:", order);
-    // Em uma implementação real, aqui você geraria um PDF ou abriria uma nova aba com os dados formatados para impressão.
-    alert(`Simulando impressão da OS: ${order.osNumber}\nCliente: ${order.clientName}\nEm breve esta funcionalidade abrirá uma via para impressão.`);
+    alert(`Simulando impressão da OS: ${order.osNumber}\nCliente: ${order.clientName}\nTotal: R$ ${order.grandTotalValue?.toFixed(2)}\nEm breve esta funcionalidade abrirá uma via para impressão.`);
   };
   
   const getStatusColor = (status: ServiceOrderStatus) => {
@@ -189,13 +263,13 @@ export default function ServiceOrdersPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Criar Nova Ordem de Serviço
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-2xl md:max-w-3xl">
+          <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
             <DialogHeader>
               <DialogTitle>Nova Ordem de Serviço</DialogTitle>
               <DialogDescription>Preencha os dados para registrar uma nova O.S.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateServiceOrder}>
-              <ScrollArea className="h-[70vh] p-1 pr-3">
+              <ScrollArea className="h-[75vh] p-1 pr-3">
                 <div className="space-y-6 p-2">
                   {/* Campos Gerais da OS */}
                   <Card>
@@ -339,7 +413,7 @@ export default function ServiceOrdersPage() {
                   
                   {/* Serviços Executados e Peças Utilizadas (Simplificado) */}
                   <Card>
-                    <CardHeader><CardTitle className="text-xl">Serviços e Peças</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-xl">Serviços e Peças (Descritivo)</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         <div>
                             <Label htmlFor="osServicesPerformed">Serviços Executados (Descrição)</Label>
@@ -354,16 +428,119 @@ export default function ServiceOrdersPage() {
                     </CardContent>
                   </Card>
 
+                  {/* Valores e Produtos Adicionais */}
+                  <Card>
+                    <CardHeader>
+                        <CardTitle className="text-xl">Valores e Produtos Adicionais</CardTitle>
+                        <CardDescription>Insira o valor do serviço e adicione produtos vendidos à parte.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div>
+                            <Label htmlFor="osServiceManualValue">Valor do Serviço (R$)</Label>
+                            <Input 
+                                id="osServiceManualValue" 
+                                type="text" 
+                                value={serviceManualValueInput} 
+                                onChange={(e) => setServiceManualValueInput(e.target.value)} 
+                                placeholder="Ex: 150,00" 
+                            />
+                        </div>
+                        
+                        <div className="space-y-4 rounded-md border p-4">
+                            <h4 className="font-medium">Adicionar Produto à OS</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+                                <div className="sm:col-span-5">
+                                    <Label htmlFor="currentProductName">Nome do Produto</Label>
+                                    <Input 
+                                        id="currentProductName" 
+                                        value={currentProductNameInput} 
+                                        onChange={(e) => setCurrentProductNameInput(e.target.value)} 
+                                        placeholder="Ex: Película de Vidro"
+                                    />
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <Label htmlFor="currentProductQty">Qtd.</Label>
+                                    <Input 
+                                        id="currentProductQty" 
+                                        type="number" 
+                                        value={currentProductQtyInput} 
+                                        onChange={(e) => setCurrentProductQtyInput(e.target.value)} 
+                                        min="1"
+                                    />
+                                </div>
+                                <div className="sm:col-span-3">
+                                    <Label htmlFor="currentProductPrice">Preço Unit. (R$)</Label>
+                                    <Input 
+                                        id="currentProductPrice" 
+                                        type="text" 
+                                        value={currentProductPriceInput} 
+                                        onChange={(e) => setCurrentProductPriceInput(e.target.value)} 
+                                        placeholder="Ex: 25,00"
+                                    />
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <Button type="button" onClick={handleAddSoldProduct} className="w-full">
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Add
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {soldProductsList.length > 0 && (
+                                <div className="mt-4 space-y-2">
+                                    <h5 className="text-sm font-medium">Produtos Adicionados:</h5>
+                                    <div className="rounded-md border">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Produto</TableHead>
+                                                    <TableHead className="text-center">Qtd</TableHead>
+                                                    <TableHead className="text-right">Unit. (R$)</TableHead>
+                                                    <TableHead className="text-right">Total (R$)</TableHead>
+                                                    <TableHead className="w-[50px]"></TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {soldProductsList.map(prod => (
+                                                    <TableRow key={prod.tempId}>
+                                                        <TableCell>{prod.name}</TableCell>
+                                                        <TableCell className="text-center">{prod.quantity}</TableCell>
+                                                        <TableCell className="text-right">{prod.unitPrice.toFixed(2).replace('.', ',')}</TableCell>
+                                                        <TableCell className="text-right">{prod.totalPrice.toFixed(2).replace('.', ',')}</TableCell>
+                                                        <TableCell>
+                                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleRemoveSoldProduct(prod.tempId)}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="mt-6 text-right">
+                            <p className="text-lg font-semibold">
+                                Valor Total da OS: <span className="text-primary">R$ {grandTotalDisplay}</span>
+                            </p>
+                        </div>
+                    </CardContent>
+                  </Card>
+
                 </div>
               </ScrollArea>
               <DialogFooter className="border-t pt-6 mt-6 pr-4 flex flex-col sm:flex-row justify-between items-center w-full">
                 <Button type="button" variant="outline" onClick={() => handlePrintOS({
-                    id: "PREVIEW", // ID temporário para preview
+                    id: "PREVIEW", 
                     osNumber: `OS-${Date.now().toString().slice(-6)}` , openingDate: new Date().toLocaleString('pt-BR'),
-                    clientName, deviceBrandModel, problemReportedByClient, status, // Incluindo alguns dados para a simulação de impressão
+                    clientName, deviceBrandModel, problemReportedByClient, status, 
                     deliveryForecastDate, responsibleTechnicianId, clientCpfCnpj, clientPhone, clientEmail,
                     deviceType, deviceImeiSerial, deviceColor, deviceAccessories, technicalDiagnosis, internalObservations,
-                    servicesPerformedDescription, partsUsedDescription
+                    servicesPerformedDescription, partsUsedDescription,
+                    serviceManualValue: parseFloat(serviceManualValueInput.replace(',', '.')) || 0,
+                    additionalSoldProducts: soldProductsList,
+                    grandTotalValue: parseFloat(grandTotalDisplay.replace(',', '.')) || 0,
                 })}>
                     <Printer className="mr-2 h-4 w-4" /> Imprimir OS (Via Cliente)
                 </Button>
@@ -401,6 +578,7 @@ export default function ServiceOrdersPage() {
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden sm:table-cell">Abertura</TableHead>
                     <TableHead className="hidden lg:table-cell">Previsão</TableHead>
+                    <TableHead className="hidden xl:table-cell text-right">Total (R$)</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -417,6 +595,7 @@ export default function ServiceOrdersPage() {
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">{os.openingDate}</TableCell>
                       <TableCell className="hidden lg:table-cell">{os.deliveryForecastDate || "N/D"}</TableCell>
+                      <TableCell className="hidden xl:table-cell text-right">{os.grandTotalValue?.toFixed(2).replace('.', ',') || "0,00"}</TableCell>
                       <TableCell className="text-right space-x-1 sm:space-x-2">
                         <Button variant="outline" size="icon" onClick={() => alert(`Visualizar/Editar OS ${os.osNumber} - funcionalidade pendente`)} aria-label="Editar ordem de serviço">
                           <Pencil className="h-4 w-4" />
@@ -436,6 +615,3 @@ export default function ServiceOrdersPage() {
     </div>
   );
 }
-
-    
-
