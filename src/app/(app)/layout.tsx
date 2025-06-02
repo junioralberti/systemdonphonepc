@@ -2,6 +2,7 @@
 "use client";
 
 import type React from 'react';
+import { useState } from 'react'; // Added useState
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
@@ -21,19 +22,19 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Added Dialog components
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { LogOut, ChevronDown } from 'lucide-react';
+import { LogOut, ChevronDown, Calculator } from 'lucide-react'; // Added Calculator icon
 import Image from 'next/image';
+import { CalculatorComponent } from '@/components/calculator/calculator-component'; // Added CalculatorComponent
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, logout, userRole } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false); // State for calculator dialog
 
   if (!isAuthenticated) {
-    // This check is crucial. The AuthProvider also has logic, but this one is specific to this layout.
-    // No need to router.push here if AuthProvider already handles it.
-    // Return null or a loading indicator if AuthProvider is still initializing.
     return null; 
   }
   
@@ -109,31 +110,44 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
            <div className="flex-1">
              {/* Breadcrumbs or page title can go here */}
            </div>
-           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="https://placehold.co/100x100.png" alt="Avatar do Usuário" data-ai-hint="user avatar" />
-                  <AvatarFallback>{getInitials(userRole === 'admin' ? "Administrador" : "Usuário Padrão")}</AvatarFallback>
-                </Avatar>
-                <span className="hidden sm:inline">{userRole === 'admin' ? "Administrador" : "Usuário Padrão"}</span>
-                <ChevronDown className="h-4 w-4 hidden sm:inline" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push('/settings')}>Configurações</DropdownMenuItem>
-              <DropdownMenuItem>Suporte</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>Sair</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+           <div className="flex items-center gap-2">
+             <Button variant="ghost" size="icon" onClick={() => setIsCalculatorOpen(true)} aria-label="Abrir Calculadora">
+                <Calculator className="h-5 w-5" />
+             </Button>
+             <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative flex items-center gap-2 px-2 sm:px-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src="https://placehold.co/100x100.png" alt="Avatar do Usuário" data-ai-hint="user avatar" />
+                    <AvatarFallback>{getInitials(userRole === 'admin' ? "Administrador" : "Usuário Padrão")}</AvatarFallback>
+                  </Avatar>
+                  <span className="hidden sm:inline">{userRole === 'admin' ? "Administrador" : "Usuário Padrão"}</span>
+                  <ChevronDown className="h-4 w-4 hidden sm:inline" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/settings')}>Configurações</DropdownMenuItem>
+                <DropdownMenuItem>Suporte</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout}>Sair</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+           </div>
         </header>
         <main className="flex-1 p-6">
           {children}
         </main>
       </SidebarInset>
+      
+      <Dialog open={isCalculatorOpen} onOpenChange={setIsCalculatorOpen}>
+        <DialogContent className="p-0 max-w-xs border-none bg-transparent shadow-none">
+          {/* DialogHeader and DialogTitle are removed to make it more like a floating widget */}
+          <CalculatorComponent />
+        </DialogContent>
+      </Dialog>
+
     </SidebarProvider>
   );
 }
