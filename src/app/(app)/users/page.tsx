@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +22,9 @@ export default function UsersPage() {
     return (
        <div className="flex flex-col items-center justify-center gap-4 p-6 h-full">
         <ShieldAlert className="h-16 w-16 text-destructive" />
-        <h2 className="text-2xl font-semibold">Access Denied</h2>
-        <p className="text-muted-foreground">You do not have permission to view this page.</p>
-        <Button onClick={() => router.push('/dashboard')}>Go to Dashboard</Button>
+        <h2 className="text-2xl font-semibold">Acesso Negado</h2>
+        <p className="text-muted-foreground">Você não tem permissão para visualizar esta página.</p>
+        <Button onClick={() => router.push('/dashboard')}>Ir para o Painel</Button>
       </div>
     );
   }
@@ -31,18 +32,18 @@ export default function UsersPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-headline text-3xl font-semibold">Users Management</h1>
+        <h1 className="font-headline text-3xl font-semibold">Gerenciamento de Usuários</h1>
         <Button>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add New User
+          <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Novo Usuário
         </Button>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>User List</CardTitle>
-          <CardDescription>Manage system users and their roles.</CardDescription>
+          <CardTitle>Lista de Usuários</CardTitle>
+          <CardDescription>Gerencie usuários do sistema e suas funções.</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">User management interface will be here. (Table for users, roles, permissions)</p>
+          <p className="text-muted-foreground">A interface de gerenciamento de usuários estará aqui. (Tabela para usuários, funções, permissões)</p>
         </CardContent>
       </Card>
     </div>

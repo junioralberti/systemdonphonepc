@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google'; // Using next/font for Inter as it's common practice
 import './globals.css';
@@ -10,8 +11,8 @@ import QueryProvider from '@/context/query-provider';
 // And keep the <link> tags for Inter in <head>
 
 export const metadata: Metadata = {
-  title: 'DonPhone System',
-  description: 'DonPhone System - Service Order Management',
+  title: 'Sistema DonPhone',
+  description: 'Sistema DonPhone - Gerenciamento de Ordens de Serviço',
 };
 
 export default function RootLayout({
@@ -20,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

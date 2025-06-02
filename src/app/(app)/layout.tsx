@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from 'react';
@@ -35,7 +36,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return null; 
   }
   
-  const getInitials = (name: string = "User") => {
+  const getInitials = (name: string = "Usuário") => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
@@ -87,9 +88,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarMenuItem>
             ))}
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={logout} tooltip={{ children: "Log Out", className: "text-xs" }}>
+              <SidebarMenuButton onClick={logout} tooltip={{ children: "Sair", className: "text-xs" }}>
                 <LogOut />
-                <span>Log Out</span>
+                <span>Sair</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -105,20 +106,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative flex items-center gap-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" data-ai-hint="user avatar" />
-                  <AvatarFallback>{getInitials(userRole === 'admin' ? "Admin User" : "Standard User")}</AvatarFallback>
+                  <AvatarImage src="https://placehold.co/100x100.png" alt="Avatar do Usuário" data-ai-hint="user avatar" />
+                  <AvatarFallback>{getInitials(userRole === 'admin' ? "Administrador" : "Usuário Padrão")}</AvatarFallback>
                 </Avatar>
-                <span className="hidden sm:inline">{userRole === 'admin' ? "Admin User" : "Standard User"}</span>
+                <span className="hidden sm:inline">{userRole === 'admin' ? "Administrador" : "Usuário Padrão"}</span>
                 <ChevronDown className="h-4 w-4 hidden sm:inline" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push('/settings')}>Settings</DropdownMenuItem>
-              <DropdownMenuItem>Support</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/settings')}>Configurações</DropdownMenuItem>
+              <DropdownMenuItem>Suporte</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+              <DropdownMenuItem onClick={logout}>Sair</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </header>

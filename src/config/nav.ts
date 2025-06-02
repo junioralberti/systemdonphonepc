@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard,
@@ -26,54 +27,54 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   {
-    title: 'Dashboard',
+    title: 'Painel',
     href: '/dashboard',
     icon: LayoutDashboard,
   },
   {
-    title: 'Clients',
+    title: 'Clientes',
     href: '/clients',
     icon: Users,
   },
   {
-    title: 'Products',
+    title: 'Produtos',
     href: '/products',
     icon: Package,
   },
   {
-    title: 'Providers',
+    title: 'Fornecedores',
     href: '/providers',
     icon: Truck,
   },
   {
-    title: 'Users',
+    title: 'Usuários',
     href: '/users',
     icon: UserCog,
     role: 'admin', // Only visible to admins
   },
   {
-    title: 'Service Orders',
+    title: 'Ordens de Serviço',
     href: '/service-orders',
     icon: Wrench,
   },
   {
-    title: 'Counter Sales',
+    title: 'Vendas no Balcão',
     href: '/counter-sales',
     icon: ShoppingCart,
   },
   {
-    title: 'Reports',
+    title: 'Relatórios',
     href: '/reports',
     icon: BarChart3,
   },
   {
-    title: 'AI Diagnostics',
+    title: 'Diagnóstico IA',
     href: '/ai-diagnostics',
     icon: BrainCircuit,
   },
   // Items to be placed at the bottom
   {
-    title: 'Settings',
+    title: 'Configurações',
     href: '/settings',
     icon: Settings,
     isBottom: true,

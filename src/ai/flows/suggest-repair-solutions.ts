@@ -1,3 +1,4 @@
+
 // This file is machine-generated - edit at your own risk.
 
 'use server';
@@ -14,15 +15,15 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SuggestRepairSolutionsInputSchema = z.object({
-  problemDescription: z.string().describe('The customer provided description of the phone issue.'),
-  phoneModel: z.string().describe('The model of the phone that needs repair.'),
+  problemDescription: z.string().describe('A descrição do problema do celular fornecida pelo cliente.'),
+  phoneModel: z.string().describe('O modelo do celular que precisa de reparo.'),
 });
 export type SuggestRepairSolutionsInput = z.infer<typeof SuggestRepairSolutionsInputSchema>;
 
 const SuggestRepairSolutionsOutputSchema = z.object({
-  suggestedSolutions: z.array(z.string()).describe('A list of potential solutions to the problem.'),
-  partsNeeded: z.array(z.string()).describe('A list of parts that may be needed for the repair.'),
-  estimatedRepairTime: z.string().describe('An estimated repair time for the identified solutions.'),
+  suggestedSolutions: z.array(z.string()).describe('Uma lista de possíveis soluções para o problema.'),
+  partsNeeded: z.array(z.string()).describe('Uma lista de peças que podem ser necessárias para o reparo.'),
+  estimatedRepairTime: z.string().describe('Um tempo estimado de reparo para as soluções identificadas.'),
 });
 export type SuggestRepairSolutionsOutput = z.infer<typeof SuggestRepairSolutionsOutputSchema>;
 

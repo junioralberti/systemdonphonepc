@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from 'react';
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   if (loading && pathname !== '/') {
      // Basic loading state to prevent flicker or premature redirect
-    return <div className="flex h-screen items-center justify-center"><p>Loading...</p></div>;
+    return <div className="flex h-screen items-center justify-center"><p>Carregando...</p></div>;
   }
   
   if (!isAuthenticated && pathname !== '/') {

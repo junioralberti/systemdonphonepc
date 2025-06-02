@@ -1,14 +1,16 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { FileText, BarChartHorizontalBig, PieChart, History } from "lucide-react";
 
 export default function ReportsPage() {
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-headline text-3xl font-semibold">Reports</h1>
+      <h1 className="font-headline text-3xl font-semibold">Relatórios</h1>
       <Card>
         <CardHeader>
-          <CardTitle>Generate Reports</CardTitle>
-          <CardDescription>Access various sales, service, financial, and inventory reports.</CardDescription>
+          <CardTitle>Gerar Relatórios</CardTitle>
+          <CardDescription>Acesse vários relatórios de vendas, serviços, financeiros e de inventário.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           
@@ -16,12 +18,12 @@ export default function ReportsPage() {
             <CardHeader className="flex flex-row items-center gap-4">
               <BarChartHorizontalBig className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle className="text-lg">Sales Report</CardTitle>
-                <CardDescription className="text-xs">By period, payment method, product.</CardDescription>
+                <CardTitle className="text-lg">Relatório de Vendas</CardTitle>
+                <CardDescription className="text-xs">Por período, método de pagamento, produto.</CardDescription>
               </div>
             </CardHeader>
             <CardContent>
-               <Button variant="outline" className="w-full">Generate</Button>
+               <Button variant="outline" className="w-full">Gerar</Button>
             </CardContent>
           </Card>
 
@@ -29,12 +31,12 @@ export default function ReportsPage() {
             <CardHeader className="flex flex-row items-center gap-4">
               <History className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle className="text-lg">OS Report</CardTitle>
-                <CardDescription className="text-xs">By technician, status, dates.</CardDescription>
+                <CardTitle className="text-lg">Relatório de OS</CardTitle>
+                <CardDescription className="text-xs">Por técnico, status, datas.</CardDescription>
               </div>
             </CardHeader>
             <CardContent>
-               <Button variant="outline" className="w-full">Generate</Button>
+               <Button variant="outline" className="w-full">Gerar</Button>
             </CardContent>
           </Card>
           
@@ -42,12 +44,12 @@ export default function ReportsPage() {
             <CardHeader className="flex flex-row items-center gap-4">
               <PieChart className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle className="text-lg">Financial Report</CardTitle>
-                <CardDescription className="text-xs">Entries, exits, gross profit.</CardDescription>
+                <CardTitle className="text-lg">Relatório Financeiro</CardTitle>
+                <CardDescription className="text-xs">Entradas, saídas, lucro bruto.</CardDescription>
               </div>
             </CardHeader>
             <CardContent>
-               <Button variant="outline" className="w-full">Generate</Button>
+               <Button variant="outline" className="w-full">Gerar</Button>
             </CardContent>
           </Card>
 
@@ -55,12 +57,12 @@ export default function ReportsPage() {
             <CardHeader className="flex flex-row items-center gap-4">
               <FileText className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle className="text-lg">Inventory Report</CardTitle>
-                <CardDescription className="text-xs">Minimum inventory, zeroed products.</CardDescription>
+                <CardTitle className="text-lg">Relatório de Inventário</CardTitle>
+                <CardDescription className="text-xs">Inventário mínimo, produtos zerados.</CardDescription>
               </div>
             </CardHeader>
             <CardContent>
-               <Button variant="outline" className="w-full">Generate</Button>
+               <Button variant="outline" className="w-full">Gerar</Button>
             </CardContent>
           </Card>
 

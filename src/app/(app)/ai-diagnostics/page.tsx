@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -26,11 +27,11 @@ export default function AiDiagnosticsPage() {
     setResults(null);
 
     if (!problemDescription || !phoneModel) {
-      setError("Please fill in both problem description and phone model.");
+      setError("Por favor, preencha a descrição do problema e o modelo do celular.");
       setIsLoading(false);
       toast({
-        title: "Missing Information",
-        description: "Problem description and phone model are required.",
+        title: "Informação Faltando",
+        description: "A descrição do problema e o modelo do celular são obrigatórios.",
         variant: "destructive",
       });
       return;
@@ -41,17 +42,17 @@ export default function AiDiagnosticsPage() {
       const output = await suggestRepairSolutions(input);
       setResults(output);
       toast({
-        title: "Suggestions Ready",
-        description: "AI diagnostic suggestions have been generated.",
+        title: "Sugestões Prontas",
+        description: "As sugestões de diagnóstico da IA foram geradas.",
         variant: "default",
       });
     } catch (err) {
       console.error("AI Diagnostic Error:", err);
-      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      setError(`Failed to get suggestions: ${errorMessage}`);
+      const errorMessage = err instanceof Error ? err.message : "Ocorreu um erro desconhecido.";
+      setError(`Falha ao obter sugestões: ${errorMessage}`);
       toast({
-        title: "Error",
-        description: `Failed to get suggestions: ${errorMessage}`,
+        title: "Erro",
+        description: `Falha ao obter sugestões: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -61,32 +62,32 @@ export default function AiDiagnosticsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-headline text-3xl font-semibold">AI-Powered Diagnostic Assistance</h1>
+      <h1 className="font-headline text-3xl font-semibold">Assistência de Diagnóstico com IA</h1>
       
       <Card>
         <CardHeader>
-          <CardTitle>Diagnose Phone Issue</CardTitle>
-          <CardDescription>Enter the customer's problem description and phone model to get AI-powered repair suggestions.</CardDescription>
+          <CardTitle>Diagnosticar Problema do Celular</CardTitle>
+          <CardDescription>Insira a descrição do problema do cliente e o modelo do celular para obter sugestões de reparo com IA.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="phoneModel">Phone Model</Label>
+              <Label htmlFor="phoneModel">Modelo do Celular</Label>
               <Input 
                 id="phoneModel" 
                 value={phoneModel} 
                 onChange={(e) => setPhoneModel(e.target.value)} 
-                placeholder="e.g., iPhone 13 Pro, Samsung Galaxy S21" 
+                placeholder="ex: iPhone 13 Pro, Samsung Galaxy S21" 
                 className="text-base"
               />
             </div>
             <div>
-              <Label htmlFor="problemDescription">Problem Description</Label>
+              <Label htmlFor="problemDescription">Descrição do Problema</Label>
               <Textarea 
                 id="problemDescription" 
                 value={problemDescription} 
                 onChange={(e) => setProblemDescription(e.target.value)} 
-                placeholder="e.g., Screen is cracked, phone doesn't turn on, battery drains quickly..."
+                placeholder="ex: Tela rachada, celular não liga, bateria descarrega rápido..."
                 rows={4}
                 className="text-base"
               />
@@ -97,12 +98,12 @@ export default function AiDiagnosticsPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Diagnosing...
+                  Diagnosticando...
                 </>
               ) : (
                 <>
                   <Lightbulb className="mr-2 h-4 w-4" />
-                  Get Suggestions
+                  Obter Sugestões
                 </>
               )}
             </Button>
@@ -113,7 +114,7 @@ export default function AiDiagnosticsPage() {
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>Erro</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -123,12 +124,12 @@ export default function AiDiagnosticsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-6 w-6 text-green-500" />
-              Diagnostic Suggestions
+              Sugestões de Diagnóstico
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="font-semibold text-lg mb-1">Suggested Solutions:</h3>
+              <h3 className="font-semibold text-lg mb-1">Soluções Sugeridas:</h3>
               {results.suggestedSolutions.length > 0 ? (
                 <ul className="list-disc pl-5 space-y-1 text-sm">
                   {results.suggestedSolutions.map((solution, index) => (
@@ -136,12 +137,12 @@ export default function AiDiagnosticsPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground text-sm">No specific solutions suggested.</p>
+                <p className="text-muted-foreground text-sm">Nenhuma solução específica sugerida.</p>
               )}
             </div>
             <hr />
             <div>
-              <h3 className="font-semibold text-lg mb-1">Parts Needed:</h3>
+              <h3 className="font-semibold text-lg mb-1">Peças Necessárias:</h3>
               {results.partsNeeded.length > 0 ? (
                 <ul className="list-disc pl-5 space-y-1 text-sm">
                   {results.partsNeeded.map((part, index) => (
@@ -149,13 +150,13 @@ export default function AiDiagnosticsPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground text-sm">No specific parts identified as needed.</p>
+                <p className="text-muted-foreground text-sm">Nenhuma peça específica identificada como necessária.</p>
               )}
             </div>
             <hr />
             <div>
-              <h3 className="font-semibold text-lg mb-1">Estimated Repair Time:</h3>
-              <p className="text-sm">{results.estimatedRepairTime || "Not estimated."}</p>
+              <h3 className="font-semibold text-lg mb-1">Tempo Estimado de Reparo:</h3>
+              <p className="text-sm">{results.estimatedRepairTime || "Não estimado."}</p>
             </div>
           </CardContent>
         </Card>

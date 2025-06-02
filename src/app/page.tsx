@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -27,17 +28,17 @@ export default function LoginPage() {
           <div className="mb-4 rounded-full bg-primary p-3 text-primary-foreground">
             <Phone size={32} />
           </div>
-          <CardTitle className="font-headline text-3xl">DonPhone System</CardTitle>
-          <CardDescription>Please sign in to continue</CardDescription>
+          <CardTitle className="font-headline text-3xl">Sistema DonPhone</CardTitle>
+          <CardDescription>Por favor, entre para continuar</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="user@example.com"
+                placeholder="usuario@exemplo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -45,7 +46,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Senha</Label>
               <Input
                 id="password"
                 type="password"
@@ -57,13 +58,13 @@ export default function LoginPage() {
               />
             </div>
             <Button type="submit" className="w-full text-base">
-              Sign In
+              Entrar
             </Button>
           </form>
         </CardContent>
         <CardFooter className="justify-center">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} DonPhone System.
+            © {new Date().getFullYear()} Sistema DonPhone.
           </p>
         </CardFooter>
       </Card>
