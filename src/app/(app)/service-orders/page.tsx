@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PlusCircle, Pencil, Trash2, FileText, Printer, UserPlus, Search, MinusCircle, ShoppingCart, DollarSign } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { getEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
 
 // Definindo os tipos explicitamente para clareza
 type ServiceOrderStatus = "Aberta" | "Em andamento" | "Aguardando peça" | "Concluída" | "Entregue" | "Cancelada";
@@ -69,6 +70,7 @@ export default function ServiceOrdersPage() {
   const [isNewServiceOrderDialogOpen, setIsNewServiceOrderDialogOpen] = useState(false);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const { toast } = useToast();
+  const [establishmentDataForPrint, setEstablishmentDataForPrint] = useState<EstablishmentSettings | null>(null);
   
   // Estados para o formulário de nova OS
   const [osNumber, setOsNumber] = useState(""); 
@@ -95,13 +97,33 @@ export default function ServiceOrdersPage() {
   const [servicesPerformedDescription, setServicesPerformedDescription] = useState("");
   const [partsUsedDescription, setPartsUsedDescription] = useState("");
 
-  // Novos estados para valores e produtos adicionais
   const [serviceManualValueInput, setServiceManualValueInput] = useState("");
   const [soldProductsList, setSoldProductsList] = useState<SoldProductItem[]>([]);
   const [currentProductNameInput, setCurrentProductNameInput] = useState("");
   const [currentProductQtyInput, setCurrentProductQtyInput] = useState("1");
   const [currentProductPriceInput, setCurrentProductPriceInput] = useState("");
   const [grandTotalDisplay, setGrandTotalDisplay] = useState("0.00");
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+        try {
+            const settings = await getEstablishmentSettings();
+            setEstablishmentDataForPrint(settings);
+        } catch (error) {
+            console.error("Failed to fetch establishment settings for print:", error);
+            // Use default/placeholder if fetch fails
+            setEstablishmentDataForPrint({
+                businessName: "Seu Estabelecimento (Configure no Painel)",
+                businessAddress: "Seu Endereço",
+                businessCnpj: "Seu CNPJ",
+                businessPhone: "Seu Telefone",
+                businessEmail: "Seu E-mail",
+                logoUrl: "/donphone-logo.png" // Default logo
+            });
+        }
+    };
+    fetchSettings();
+  }, []);
 
 
   const resetFormFields = () => {
@@ -217,23 +239,24 @@ export default function ServiceOrdersPage() {
     resetFormFields();
     setIsNewServiceOrderDialogOpen(false);
     console.log("Nova ordem de serviço criada (simulada):", newOrder);
+    // TODO: Persist this order to Firestore
   };
 
   const handleDeleteServiceOrder = (orderId: string) => {
     setServiceOrders(serviceOrders.filter(os => os.id !== orderId));
     toast({ title: "O.S. Excluída", description: `A Ordem de Serviço ${orderId} foi excluída.`, variant: "destructive"});
     console.log("Ordem de serviço excluída (simulada):", orderId);
+    // TODO: Delete this order from Firestore
   };
 
   const handlePrintOS = (order: Partial<ServiceOrder>) => {
-    // Simulação de dados do estabelecimento - Em um app real, isso viria do Firestore/config
-    const establishmentData = {
-      name: "DonPhone Assistência Técnica (Exemplo)",
-      address: "Rua das Palmeiras, 123, Centro, Cidade Exemplo - EX",
-      cnpj: "00.000.000/0001-00",
-      phone: "(00) 1234-5678",
-      email: "contato@donphoneexemplo.com",
-      logoUrl: "/donphone-logo.png" // Certifique-se que este logo existe na pasta public
+    const establishmentData = establishmentDataForPrint || {
+      businessName: "DonPhone Assistência (Padrão)",
+      businessAddress: "Rua Exemplo, 123",
+      businessCnpj: "00.000.000/0001-00",
+      businessPhone: "(00) 1234-5678",
+      businessEmail: "contato@donphone.com",
+      logoUrl: "/donphone-logo.png"
     };
 
     const printWindow = window.open('', '_blank', 'height=700,width=800');
@@ -266,30 +289,32 @@ export default function ServiceOrdersPage() {
       `);
       printWindow.document.write('</style></head><body><div class="print-container">');
 
-      // Cabeçalho do Estabelecimento
       printWindow.document.write('<div class="establishment-header">');
       if (establishmentData.logoUrl) {
         printWindow.document.write(`<div class="logo-container"><img src="${establishmentData.logoUrl}" alt="Logo do Estabelecimento" /></div>`);
       }
       printWindow.document.write('<div class="establishment-info">');
-      printWindow.document.write(`<strong>${establishmentData.name}</strong>`);
-      printWindow.document.write(`${establishmentData.address}<br/>`);
-      printWindow.document.write(`CNPJ: ${establishmentData.cnpj}<br/>`);
-      printWindow.document.write(`Telefone: ${establishmentData.phone} | E-mail: ${establishmentData.email}`);
+      printWindow.document.write(`<strong>${establishmentData.businessName || "Nome não configurado"}</strong><br/>`);
+      printWindow.document.write(`${establishmentData.businessAddress || "Endereço não configurado"}<br/>`);
+      if(establishmentData.businessCnpj) printWindow.document.write(`CNPJ: ${establishmentData.businessCnpj}<br/>`);
+      if(establishmentData.businessPhone || establishmentData.businessEmail) {
+        printWindow.document.write(`Telefone: ${establishmentData.businessPhone || ""} ${establishmentData.businessPhone && establishmentData.businessEmail ? '|' : ''} E-mail: ${establishmentData.businessEmail || ""}`);
+      }
       printWindow.document.write('</div></div>');
 
       printWindow.document.write(`<h1 class="os-title">ORDEM DE SERVIÇO Nº: ${order.osNumber || 'N/A'}</h1>`);
 
-      // Detalhes Gerais da OS
       printWindow.document.write('<div class="section-title">Detalhes da OS</div>');
       printWindow.document.write('<div class="details-grid">');
       printWindow.document.write(`<div><strong>Data de Abertura:</strong> ${order.openingDate || 'N/A'}</div>`);
       let formattedDeliveryDate = "N/A";
       if (order.deliveryForecastDate) {
-        const dateParts = order.deliveryForecastDate.split('-'); // yyyy-mm-dd
-        if (dateParts.length === 3) {
-          formattedDeliveryDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-        }
+        try {
+            const date = new Date(order.deliveryForecastDate + 'T00:00:00'); // Ensure it's parsed as local time
+            if (!isNaN(date.getTime())) {
+                 formattedDeliveryDate = date.toLocaleDateString('pt-BR');
+            }
+        } catch (e) { console.error("Error formatting delivery date:", e); }
       }
       printWindow.document.write(`<div><strong>Previsão de Entrega:</strong> ${formattedDeliveryDate}</div>`);
       printWindow.document.write(`<div><strong>Status:</strong> ${order.status || 'N/A'}</div>`);
@@ -298,7 +323,6 @@ export default function ServiceOrdersPage() {
       }
       printWindow.document.write('</div>');
 
-      // Dados do Cliente
       printWindow.document.write('<div class="section-title">Dados do Cliente</div>');
       printWindow.document.write('<div class="details-grid-full">');
       printWindow.document.write(`<div><strong>Nome:</strong> ${order.clientName || 'N/A'}</div>`);
@@ -307,7 +331,6 @@ export default function ServiceOrdersPage() {
       if (order.clientEmail) printWindow.document.write(`<div><strong>E-mail:</strong> ${order.clientEmail}</div>`);
       printWindow.document.write('</div>');
 
-      // Informações do Aparelho
       printWindow.document.write('<div class="section-title">Informações do Aparelho</div>');
       printWindow.document.write('<div class="details-grid">');
       if (order.deviceType) printWindow.document.write(`<div><strong>Tipo:</strong> ${order.deviceType}</div>`);
@@ -317,7 +340,6 @@ export default function ServiceOrdersPage() {
       if (order.deviceAccessories) printWindow.document.write(`<div style="grid-column: span 2;"><strong>Acessórios Recebidos:</strong> ${order.deviceAccessories}</div>`);
       printWindow.document.write('</div>');
       
-      // Problemas e Diagnóstico
       printWindow.document.write('<div class="section-title">Problemas e Diagnóstico</div>');
       printWindow.document.write('<div class="details-grid-full">');
       printWindow.document.write(`<div><strong>Defeito Informado pelo Cliente:</strong> <div class="text-area-content">${order.problemReportedByClient || 'N/A'}</div></div>`);
@@ -325,7 +347,6 @@ export default function ServiceOrdersPage() {
       if (order.internalObservations) printWindow.document.write(`<div><strong>Observações Internas:</strong> <div class="text-area-content">${order.internalObservations}</div></div>`);
       printWindow.document.write('</div>');
 
-      // Serviços e Peças (Descritivo)
       if (order.servicesPerformedDescription || order.partsUsedDescription) {
         printWindow.document.write('<div class="section-title">Serviços Executados e Peças Utilizadas</div>');
         printWindow.document.write('<div class="details-grid-full">');
@@ -334,7 +355,6 @@ export default function ServiceOrdersPage() {
         printWindow.document.write('</div>');
       }
       
-      // Valores
       printWindow.document.write('<div class="section-title">Valores</div>');
       printWindow.document.write('<div class="details-grid-full">');
       printWindow.document.write(`<div><strong>Valor do Serviço:</strong> R$ ${(order.serviceManualValue !== undefined ? order.serviceManualValue.toFixed(2).replace('.', ',') : '0,00')}</div>`);
@@ -356,7 +376,6 @@ export default function ServiceOrdersPage() {
       
       printWindow.document.write(`<div class="grand-total">VALOR TOTAL DA OS: R$ ${order.grandTotalValue?.toFixed(2).replace('.', ',') || '0,00'}</div>`);
 
-      // Área de Assinatura
       printWindow.document.write('<div class="signature-area">');
       printWindow.document.write('<div class="signature-line"></div>');
       printWindow.document.write(`<div>Assinatura do Cliente (${order.clientName || ''})</div>`);
@@ -370,7 +389,7 @@ export default function ServiceOrdersPage() {
       }, 500);
 
     } else {
-      alert("Por favor, desabilite o bloqueador de pop-ups para imprimir.");
+      toast({ title: "Impressão Bloqueada", description: "Por favor, desabilite o bloqueador de pop-ups.", variant: "destructive"});
     }
   };
   
@@ -669,7 +688,6 @@ export default function ServiceOrdersPage() {
               </ScrollArea>
               <DialogFooter className="border-t pt-6 mt-6 pr-4 flex flex-col sm:flex-row justify-between items-center w-full">
                 <Button type="button" variant="outline" onClick={() => handlePrintOS({
-                    id: "PREVIEW", 
                     osNumber: `OS-${Date.now().toString().slice(-6)}` , openingDate: new Date().toLocaleString('pt-BR'),
                     clientName, deviceBrandModel, problemReportedByClient, status, 
                     deliveryForecastDate, responsibleTechnicianName,
@@ -696,7 +714,7 @@ export default function ServiceOrdersPage() {
       <Card>
         <CardHeader>
           <CardTitle>Gerenciar Ordens de Serviço</CardTitle>
-          <CardDescription>Rastreie e gerencie todos os reparos e serviços de dispositivos.</CardDescription>
+          <CardDescription>Rastreie e gerencie todos os reparos e serviços de dispositivos. (OS salvas apenas em memória local por enquanto)</CardDescription>
         </CardHeader>
         <CardContent>
           {serviceOrders.length === 0 ? (

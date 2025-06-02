@@ -8,17 +8,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState('teste@donphone.com');
-  const [password, setPassword] = useState('senha123');
+  const [password, setPassword] = useState('Bettina03*');
   const { login } = useAuth();
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you'd validate credentials here
-    // For this mock, any input "logs in" as admin.
-    login('admin'); 
+    setError(null); // Clear previous errors
+
+    if (email === 'teste@donphone.com' && password === 'Bettina03*') {
+      login('admin'); 
+    } else {
+      setError('Credenciais inválidas. Por favor, tente novamente.');
+    }
   };
 
   return (
@@ -39,6 +46,13 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Erro de Login</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <Input

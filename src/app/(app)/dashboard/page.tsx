@@ -4,13 +4,14 @@
 import { useState, type ChangeEvent, type FormEvent, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, CreditCard, DollarSign, Users, Building, Save, Loader2, UploadCloud } from "lucide-react";
+import { Activity, CreditCard, DollarSign, Users, Building, Save, Loader2, UploadCloud, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { getEstablishmentSettings, saveEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
@@ -21,13 +22,32 @@ export default function DashboardPage() {
   const [businessCnpj, setBusinessCnpj] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
-  const [businessLogoFile, setBusinessLogoFile] = useState<File | null>(null); // For new file upload
-  const [logoPreview, setLogoPreview] = useState<string | null>(null); // For display (Data URL or existing URL)
+  const [businessLogoFile, setBusinessLogoFile] = useState<File | null>(null); 
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  // States for dashboard card data - to be implemented with actual data fetching later
+  const [totalRevenue, setTotalRevenue] = useState<string>("N/D");
+  const [activeClients, setActiveClients] = useState<string>("N/D");
+  const [openServiceOrders, setOpenServiceOrders] = useState<string>("N/D");
+  const [pendingRepairs, setPendingRepairs] = useState<string>("N/D");
+  const [isLoadingDashboardStats, setIsLoadingDashboardStats] = useState(true);
 
   const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError } = useQuery<EstablishmentSettings | null, Error>({
     queryKey: ["establishmentSettings"],
     queryFn: getEstablishmentSettings,
   });
+
+  useEffect(() => {
+    // Simulate loading for dashboard stats for now
+    const timer = setTimeout(() => setIsLoadingDashboardStats(false), 1000); 
+    return () => clearTimeout(timer);
+    // TODO: Implement actual data fetching for dashboard cards
+    // Example:
+    // fetchTotalRevenue().then(data => setTotalRevenue(data.formattedValue));
+    // fetchActiveClients().then(data => setActiveClients(data.count));
+    // ...
+  }, []);
+
 
   useEffect(() => {
     if (establishmentSettings) {
@@ -41,7 +61,7 @@ export default function DashboardPage() {
       } else {
         setLogoPreview(null);
       }
-      setBusinessLogoFile(null); // Clear file input if data is loaded from DB
+      setBusinessLogoFile(null); 
     }
   }, [establishmentSettings]);
 
@@ -70,7 +90,7 @@ export default function DashboardPage() {
       } else {
          setLogoPreview(null);
       }
-      setBusinessLogoFile(null); // Clear the file input after saving
+      setBusinessLogoFile(null); 
     },
     onError: (error: Error) => {
       toast({
@@ -88,14 +108,11 @@ export default function DashboardPage() {
       setBusinessLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setLogoPreview(reader.result as string); // Show Data URL preview for new file
+        setLogoPreview(reader.result as string); 
       };
       reader.readAsDataURL(file);
     } else {
-      // If user clears file input, decide if we want to remove existing logo
-      // For now, this means "no change" or "remove if no existing logoUrl"
       setBusinessLogoFile(null); 
-      // If there was an existing logo from DB, keep its preview unless explicitly removed
       if (!establishmentSettings?.logoUrl) {
           setLogoPreview(null);
       }
@@ -103,10 +120,8 @@ export default function DashboardPage() {
   };
   
   const handleRemoveLogo = () => {
-    setBusinessLogoFile(null); // Indicate removal if it was a new file
-    setLogoPreview(null); // Clear preview
-    // The actual deletion from storage will happen on save if businessLogoFile is explicitly set to null
-    // and a logoUrl existed.
+    setBusinessLogoFile(null); 
+    setLogoPreview(null); 
   };
 
   const handleSaveEstablishmentData = async (e: FormEvent) => {
@@ -118,18 +133,19 @@ export default function DashboardPage() {
       businessPhone,
       businessEmail,
     };
-    // If businessLogoFile is null AND logoPreview is null, it means remove logo.
-    // If businessLogoFile has a value, it's a new upload.
-    // If businessLogoFile is null but logoPreview has a value (from DB), it means "no change to logo".
     
-    let logoActionFile: File | null | undefined = businessLogoFile; // undefined means no change, null means remove, File means upload
-    if (!businessLogoFile && !logoPreview) { // This condition means user cleared the logo
-        logoActionFile = null; // Signal to remove
+    let logoActionFile: File | null | undefined = businessLogoFile; 
+    if (!businessLogoFile && !logoPreview) { 
+        logoActionFile = null; 
     }
     
     saveSettingsMutation.mutate({ data: settingsToSave, logoFile: logoActionFile });
   };
 
+  const renderStatValue = (value: string, isLoading: boolean) => {
+    if (isLoading) return <Skeleton className="h-7 w-24" />;
+    return <div className="text-2xl font-bold">{value}</div>;
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -144,9 +160,9 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$45.231,89</div>
+            {renderStatValue(totalRevenue, isLoadingDashboardStats)}
             <p className="text-xs text-muted-foreground">
-              +20,1% do último mês
+              {/* Placeholder for percentage change */}
             </p>
           </CardContent>
         </Card>
@@ -158,9 +174,9 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+2350</div>
-            <p className="text-xs text-muted-foreground">
-              +180,1% do último mês
+            {renderStatValue(activeClients, isLoadingDashboardStats)}
+             <p className="text-xs text-muted-foreground">
+              {/* Placeholder for percentage change */}
             </p>
           </CardContent>
         </Card>
@@ -170,9 +186,9 @@ export default function DashboardPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+12</div>
-            <p className="text-xs text-muted-foreground">
-              +19% do último mês
+             {renderStatValue(openServiceOrders, isLoadingDashboardStats)}
+             <p className="text-xs text-muted-foreground">
+              {/* Placeholder for percentage change */}
             </p>
           </CardContent>
         </Card>
@@ -182,9 +198,9 @@ export default function DashboardPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+5</div>
+            {renderStatValue(pendingRepairs, isLoadingDashboardStats)}
             <p className="text-xs text-muted-foreground">
-              +2 desde a última hora
+             {/* Placeholder for percentage change */}
             </p>
           </CardContent>
         </Card>
@@ -200,72 +216,93 @@ export default function DashboardPage() {
         </CardHeader>
         <form onSubmit={handleSaveEstablishmentData}>
           <CardContent className="space-y-4">
-            {isLoadingSettings && <p className="text-sm text-muted-foreground flex items-center"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando dados do estabelecimento...</p>}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="businessName">Nome do Estabelecimento</Label>
-                <Input id="businessName" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Ex: DonPhone Assistência Técnica" />
-              </div>
-              <div>
-                <Label htmlFor="businessCnpj">CNPJ</Label>
-                <Input id="businessCnpj" value={businessCnpj} onChange={(e) => setBusinessCnpj(e.target.value)} placeholder="00.000.000/0001-00" />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="businessAddress">Endereço Completo</Label>
-              <Input id="businessAddress" value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} placeholder="Rua Exemplo, 123, Bairro, Cidade - UF, CEP 00000-000" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="businessPhone">Telefone</Label>
-                <Input id="businessPhone" type="tel" value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)} placeholder="(00) 00000-0000" />
-              </div>
-              <div>
-                <Label htmlFor="businessEmail">E-mail</Label>
-                <Input id="businessEmail" type="email" value={businessEmail} onChange={(e) => setBusinessEmail(e.target.value)} placeholder="contato@sualoja.com" />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="businessLogoFile">Logo do Estabelecimento</Label>
-              <div className="flex items-center gap-3">
-                <Input 
-                    id="businessLogoFile" 
-                    type="file" 
-                    accept="image/png, image/jpeg, image/webp" 
-                    onChange={handleLogoChange} 
-                    className="flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90" 
-                />
-                {logoPreview && (
-                    <Button type="button" variant="outline" size="sm" onClick={handleRemoveLogo}>Remover Logo</Button>
-                )}
-              </div>
-              {logoPreview ? (
-                <div className="mt-4 p-2 border rounded-md inline-block bg-muted">
-                  <Image src={logoPreview} alt="Pré-visualização do Logo" width={100} height={100} className="object-contain rounded max-h-[100px]" data-ai-hint="store logo"/>
+            {isLoadingSettings && (
+                <div className="space-y-4">
+                    <Skeleton className="h-6 w-1/4 mb-2" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-6 w-1/4 mb-2" />
+                    <Skeleton className="h-10 w-full" />
+                     <Skeleton className="h-6 w-1/4 mb-2" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-10 w-32" />
                 </div>
-              ) : (
-                 <div className="mt-3 flex items-center justify-center w-full h-24 border-2 border-dashed rounded-md text-muted-foreground">
-                    <UploadCloud className="mr-2 h-6 w-6" />
-                    <span>{businessLogoFile ? businessLogoFile.name : "Nenhum logo selecionado"}</span>
+            )}
+            {settingsError && !isLoadingSettings && (
+                 <div className="flex flex-col items-center justify-center gap-3 py-6 text-center text-destructive">
+                    <AlertTriangle className="h-10 w-10" />
+                    <p className="text-md font-medium">Erro ao carregar dados do estabelecimento</p>
+                    <p className="text-sm text-muted-foreground">{settingsError.message}</p>
                  </div>
-              )}
-              {!logoPreview && businessLogoFile && (
-                <p className="text-sm text-muted-foreground mt-2">Novo arquivo: {businessLogoFile.name}</p>
-              )}
-            </div>
-            <Button type="submit" disabled={saveSettingsMutation.isPending || isLoadingSettings} className="w-full sm:w-auto">
-              {saveSettingsMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Salvar Dados
-                </>
-              )}
-            </Button>
+            )}
+            {!isLoadingSettings && !settingsError && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="businessName">Nome do Estabelecimento</Label>
+                    <Input id="businessName" value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Ex: DonPhone Assistência Técnica" />
+                  </div>
+                  <div>
+                    <Label htmlFor="businessCnpj">CNPJ</Label>
+                    <Input id="businessCnpj" value={businessCnpj} onChange={(e) => setBusinessCnpj(e.target.value)} placeholder="00.000.000/0001-00" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="businessAddress">Endereço Completo</Label>
+                  <Input id="businessAddress" value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} placeholder="Rua Exemplo, 123, Bairro, Cidade - UF, CEP 00000-000" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="businessPhone">Telefone</Label>
+                    <Input id="businessPhone" type="tel" value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)} placeholder="(00) 00000-0000" />
+                  </div>
+                  <div>
+                    <Label htmlFor="businessEmail">E-mail</Label>
+                    <Input id="businessEmail" type="email" value={businessEmail} onChange={(e) => setBusinessEmail(e.target.value)} placeholder="contato@sualoja.com" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="businessLogoFile">Logo do Estabelecimento</Label>
+                  <div className="flex items-center gap-3">
+                    <Input 
+                        id="businessLogoFile" 
+                        type="file" 
+                        accept="image/png, image/jpeg, image/webp" 
+                        onChange={handleLogoChange} 
+                        className="flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90" 
+                    />
+                    {logoPreview && (
+                        <Button type="button" variant="outline" size="sm" onClick={handleRemoveLogo}>Remover Logo</Button>
+                    )}
+                  </div>
+                  {logoPreview ? (
+                    <div className="mt-4 p-2 border rounded-md inline-block bg-muted">
+                      <Image src={logoPreview} alt="Pré-visualização do Logo" width={100} height={100} className="object-contain rounded max-h-[100px]" data-ai-hint="store logo" />
+                    </div>
+                  ) : (
+                     <div className="mt-3 flex items-center justify-center w-full h-24 border-2 border-dashed rounded-md text-muted-foreground">
+                        <UploadCloud className="mr-2 h-6 w-6" />
+                        <span>{businessLogoFile ? businessLogoFile.name : "Nenhum logo selecionado"}</span>
+                     </div>
+                  )}
+                  {!logoPreview && businessLogoFile && (
+                    <p className="text-sm text-muted-foreground mt-2">Novo arquivo: {businessLogoFile.name}</p>
+                  )}
+                </div>
+                <Button type="submit" disabled={saveSettingsMutation.isPending || isLoadingSettings} className="w-full sm:w-auto">
+                  {saveSettingsMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Salvar Dados
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
           </CardContent>
         </form>
       </Card>
@@ -276,7 +313,7 @@ export default function DashboardPage() {
           <CardDescription>Visão geral dos eventos recentes do sistema.</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Nenhuma atividade recente para exibir.</p>
+          <p className="text-muted-foreground">Nenhuma atividade recente para exibir. (Funcionalidade pendente)</p>
           {/* Placeholder for recent activity list */}
         </CardContent>
       </Card>

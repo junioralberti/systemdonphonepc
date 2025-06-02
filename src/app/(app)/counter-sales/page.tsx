@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { ScanLine, PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
 
 interface CartItem {
   id: string; // SKU or product ID
@@ -27,6 +28,27 @@ export default function CounterSalesPage() {
   const [clientNameForSale, setClientNameForSale] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
   const { toast } = useToast();
+  const [establishmentDataForPrint, setEstablishmentDataForPrint] = useState<EstablishmentSettings | null>(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+        try {
+            const settings = await getEstablishmentSettings();
+            setEstablishmentDataForPrint(settings);
+        } catch (error) {
+            console.error("Failed to fetch establishment settings for print:", error);
+            setEstablishmentDataForPrint({
+                businessName: "Seu Estabelecimento (Configure no Painel)",
+                businessAddress: "Seu Endereço",
+                businessCnpj: "Seu CNPJ",
+                businessPhone: "Seu Telefone",
+                businessEmail: "Seu E-mail",
+                logoUrl: "/donphone-logo.png"
+            });
+        }
+    };
+    fetchSettings();
+  }, []);
 
   const handleAddItem = () => {
     if (!skuInput.trim()) {
@@ -34,11 +56,11 @@ export default function CounterSalesPage() {
       return;
     }
 
-    // Mock product lookup based on SKU
+    // TODO: Implement actual product lookup from Firestore based on SKU
     const mockProduct = {
       id: skuInput.trim().toUpperCase(),
-      name: `Produto ${skuInput.trim().toUpperCase()}`,
-      price: Math.floor(Math.random() * 100) + 10, // Random price between 10-110
+      name: `Produto ${skuInput.trim().toUpperCase()}`, // Replace with actual product name
+      price: Math.floor(Math.random() * 100) + 10, // Replace with actual product price
     };
 
     const existingItemIndex = cartItems.findIndex(item => item.id === mockProduct.id);
@@ -86,13 +108,13 @@ export default function CounterSalesPage() {
     paymentMethod?: PaymentMethod;
     totalAmount: number;
   }) => {
-    const establishmentData = {
-      name: "DonPhone Assistência Técnica (Exemplo)",
-      address: "Rua das Palmeiras, 123, Centro, Cidade Exemplo - EX",
-      cnpj: "00.000.000/0001-00",
-      phone: "(00) 1234-5678",
-      email: "contato@donphoneexemplo.com",
-      logoUrl: "/donphone-logo.png" 
+    const establishmentData = establishmentDataForPrint || {
+      businessName: "DonPhone Assistência (Padrão)",
+      businessAddress: "Rua Exemplo, 123",
+      businessCnpj: "00.000.000/0001-00",
+      businessPhone: "(00) 1234-5678",
+      businessEmail: "contato@donphone.com",
+      logoUrl: "/donphone-logo.png"
     };
 
     const printWindow = window.open('', '_blank', 'height=700,width=800');
@@ -127,11 +149,14 @@ export default function CounterSalesPage() {
         printWindow.document.write(`<div class="logo-container"><img src="${establishmentData.logoUrl}" alt="Logo" /></div>`);
       }
       printWindow.document.write('<div class="establishment-info">');
-      printWindow.document.write(`<strong>${establishmentData.name}</strong>`);
-      printWindow.document.write(`${establishmentData.address}<br/>`);
-      printWindow.document.write(`CNPJ: ${establishmentData.cnpj}<br/>`);
-      printWindow.document.write(`Telefone: ${establishmentData.phone} | E-mail: ${establishmentData.email}`);
+      printWindow.document.write(`<strong>${establishmentData.businessName || "Nome não configurado"}</strong><br/>`);
+      printWindow.document.write(`${establishmentData.businessAddress || "Endereço não configurado"}<br/>`);
+      if(establishmentData.businessCnpj) printWindow.document.write(`CNPJ: ${establishmentData.businessCnpj}<br/>`);
+      if(establishmentData.businessPhone || establishmentData.businessEmail) {
+        printWindow.document.write(`Telefone: ${establishmentData.businessPhone || ""} ${establishmentData.businessPhone && establishmentData.businessEmail ? '|' : ''} E-mail: ${establishmentData.businessEmail || ""}`);
+      }
       printWindow.document.write('</div></div>');
+
 
       printWindow.document.write(`<h1 class="receipt-title">COMPROVANTE DE VENDA</h1>`);
       printWindow.document.write('<div class="details-grid">');
@@ -187,6 +212,7 @@ export default function CounterSalesPage() {
     const saleId = `VENDA-${Date.now().toString().slice(-6)}`;
     const saleDate = new Date().toLocaleString('pt-BR');
 
+    // TODO: Persist this sale to Firestore
     console.log("Venda concluída (simulado):", {
       saleId,
       date: saleDate,
@@ -224,7 +250,7 @@ export default function CounterSalesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Nova Venda</CardTitle>
-          <CardDescription>Registre vendas de produtos e acessórios no balcão.</CardDescription>
+          <CardDescription>Registre vendas de produtos e acessórios no balcão. (Vendas salvas apenas em memória local por enquanto)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -258,7 +284,7 @@ export default function CounterSalesPage() {
               <Label htmlFor="skuInput">SKU do Produto</Label>
               <Input 
                 id="skuInput"
-                placeholder="Escanear ou inserir SKU" 
+                placeholder="Escanear ou inserir SKU (funcionalidade de busca pendente)" 
                 value={skuInput}
                 onChange={(e) => setSkuInput(e.target.value)}
                 onKeyPress={(e) => { if (e.key === 'Enter') handleAddItem(); }}
@@ -356,6 +382,3 @@ export default function CounterSalesPage() {
     </div>
   );
 }
-
-
-    

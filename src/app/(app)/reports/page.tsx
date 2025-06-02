@@ -1,16 +1,27 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, BarChartHorizontalBig, PieChart, History } from "lucide-react";
+import { FileText, BarChartHorizontalBig, PieChart, History, Info } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function ReportsPage() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="font-headline text-3xl font-semibold">Relatórios</h1>
+      
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertTitle>Funcionalidade em Desenvolvimento</AlertTitle>
+        <AlertDescription>
+          A geração detalhada de relatórios é uma funcionalidade planejada para o futuro. 
+          Os botões abaixo são placeholders e não geram relatórios completos no momento.
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader>
           <CardTitle>Gerar Relatórios</CardTitle>
-          <CardDescription>Acesse vários relatórios de vendas, serviços, financeiros e de inventário.</CardDescription>
+          <CardDescription>Acesse vários relatórios de vendas, serviços, financeiros e de inventário. (Funcionalidade futura)</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           
@@ -23,7 +34,7 @@ export default function ReportsPage() {
               </div>
             </CardHeader>
             <CardContent>
-               <Button variant="outline" className="w-full">Gerar</Button>
+               <Button variant="outline" className="w-full" disabled>Gerar (Pendente)</Button>
             </CardContent>
           </Card>
 
@@ -36,7 +47,7 @@ export default function ReportsPage() {
               </div>
             </CardHeader>
             <CardContent>
-               <Button variant="outline" className="w-full">Gerar</Button>
+               <Button variant="outline" className="w-full" disabled>Gerar (Pendente)</Button>
             </CardContent>
           </Card>
           
@@ -49,7 +60,7 @@ export default function ReportsPage() {
               </div>
             </CardHeader>
             <CardContent>
-               <Button variant="outline" className="w-full">Gerar</Button>
+               <Button variant="outline" className="w-full" disabled>Gerar (Pendente)</Button>
             </CardContent>
           </Card>
 
@@ -62,7 +73,7 @@ export default function ReportsPage() {
               </div>
             </CardHeader>
             <CardContent>
-               <Button variant="outline" className="w-full">Gerar</Button>
+               <Button variant="outline" className="w-full" disabled>Gerar (Pendente)</Button>
             </CardContent>
           </Card>
 
