@@ -8,15 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as TableSummaryFooter } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ScanLine, PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User } from "lucide-react";
+import { ScanLine, PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
+import { addSale, type SaleInput, type CartItemInput } from "@/services/salesService"; // Import Sale types
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-interface CartItem {
-  id: string; // SKU or product ID
-  name: string;
-  quantity: number;
-  price: number;
+interface CartItem extends CartItemInput {
+  id: string; // SKU or product ID (client-side temporary ID for mock products)
 }
 
 type PaymentMethod = "Dinheiro" | "Cartão de Crédito" | "Cartão de Débito" | "PIX";
@@ -28,6 +27,7 @@ export default function CounterSalesPage() {
   const [clientNameForSale, setClientNameForSale] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [establishmentDataForPrint, setEstablishmentDataForPrint] = useState<EstablishmentSettings | null>(null);
 
   useEffect(() => {
@@ -37,18 +37,38 @@ export default function CounterSalesPage() {
             setEstablishmentDataForPrint(settings);
         } catch (error) {
             console.error("Failed to fetch establishment settings for print:", error);
-            setEstablishmentDataForPrint({
-                businessName: "Seu Estabelecimento (Configure no Painel)",
-                businessAddress: "Seu Endereço",
-                businessCnpj: "Seu CNPJ",
-                businessPhone: "Seu Telefone",
-                businessEmail: "Seu E-mail",
-                logoUrl: "/donphone-logo.png"
-            });
+             // Fallback is handled directly in the print function
         }
     };
     fetchSettings();
   }, []);
+
+  const addSaleMutation = useMutation({
+    mutationFn: addSale,
+    onSuccess: (saleId) => {
+      queryClient.invalidateQueries({ queryKey: ["sales"] }); // Assuming you might list sales later
+      toast({ 
+        title: "Venda Concluída!", 
+        description: `Venda ${saleId} registrada com sucesso. Cliente: ${clientNameForSale || "Não informado"}. Pagamento: ${paymentMethod}. Total: R$ ${calculateTotal().toFixed(2)}`
+      });
+      
+      // Prepare data for printing AFTER successful save
+      const saleDataForPrint: SaleInput & { saleId: string; date: string } = {
+        saleId, // Use the ID returned from Firestore or generated before save
+        date: new Date().toLocaleString('pt-BR'),
+        clientName: clientNameForSale || null,
+        items: cartItems.map(({id, ...item}) => item), // Remove temporary client-side ID
+        paymentMethod: paymentMethod || null,
+        totalAmount: calculateTotal(),
+      };
+      handlePrintSaleReceipt(saleDataForPrint);
+      resetSaleForm();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao Salvar Venda", description: error.message, variant: "destructive" });
+    },
+  });
+
 
   const handleAddItem = () => {
     if (!skuInput.trim()) {
@@ -57,13 +77,14 @@ export default function CounterSalesPage() {
     }
 
     // TODO: Implement actual product lookup from Firestore based on SKU
+    // For now, using mock product data
     const mockProduct = {
-      id: skuInput.trim().toUpperCase(),
-      name: `Produto ${skuInput.trim().toUpperCase()}`, // Replace with actual product name
-      price: Math.floor(Math.random() * 100) + 10, // Replace with actual product price
+      id: skuInput.trim().toUpperCase() + `-${Date.now()}`, // Unique temp ID for client-side
+      name: `Produto ${skuInput.trim().toUpperCase()}`, 
+      price: Math.floor(Math.random() * 100) + 10, 
     };
 
-    const existingItemIndex = cartItems.findIndex(item => item.id === mockProduct.id);
+    const existingItemIndex = cartItems.findIndex(item => item.name === mockProduct.name); // Match by name for mock
 
     if (existingItemIndex > -1) {
       const updatedCartItems = [...cartItems];
@@ -103,16 +124,16 @@ export default function CounterSalesPage() {
   const handlePrintSaleReceipt = (saleData: {
     saleId: string;
     date: string;
-    clientName?: string;
-    items: CartItem[];
-    paymentMethod?: PaymentMethod;
+    clientName?: string | null;
+    items: CartItemInput[]; // Use CartItemInput for items sent to print
+    paymentMethod?: PaymentMethod | null;
     totalAmount: number;
   }) => {
     const establishmentData = establishmentDataForPrint || {
-      businessName: "DonPhone Assistência (Padrão)",
-      businessAddress: "Rua Exemplo, 123",
-      businessCnpj: "00.000.000/0001-00",
-      businessPhone: "(00) 1234-5678",
+      businessName: "DONPHONE INFORMÁTICA E CELULARES",
+      businessAddress: "RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ",
+      businessCnpj: "58.435.813/0004-94",
+      businessPhone: "49991287685",
       businessEmail: "contato@donphone.com",
       logoUrl: "/donphone-logo.png"
     };
@@ -173,8 +194,8 @@ export default function CounterSalesPage() {
         printWindow.document.write(`<tr>
           <td>${item.name}</td>
           <td class="text-center">${item.quantity}</td>
-          <td class="text-right">R$ ${item.price.toFixed(2).replace('.', ',')}</td>
-          <td class="text-right">R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}</td>
+          <td class="text-right">R$ ${Number(item.price).toFixed(2).replace('.', ',')}</td>
+          <td class="text-right">R$ ${(Number(item.price) * item.quantity).toFixed(2).replace('.', ',')}</td>
         </tr>`);
       });
       printWindow.document.write('</tbody></table>');
@@ -208,35 +229,15 @@ export default function CounterSalesPage() {
       return;
     }
 
-    const total = calculateTotal();
-    const saleId = `VENDA-${Date.now().toString().slice(-6)}`;
-    const saleDate = new Date().toLocaleString('pt-BR');
-
-    // TODO: Persist this sale to Firestore
-    console.log("Venda concluída (simulado):", {
-      saleId,
-      date: saleDate,
-      clientName: clientNameForSale,
-      items: cartItems,
-      paymentMethod,
-      totalAmount: total,
-    });
+    const saleToSave: SaleInput = {
+      clientName: clientNameForSale || null,
+      items: cartItems.map(({ id, ...item }) => item), // Remove client-side temp ID
+      paymentMethod: paymentMethod || null,
+      totalAmount: calculateTotal(),
+      // saleId and date will be handled by the service or backend
+    };
     
-    toast({ 
-      title: "Venda Concluída!", 
-      description: `Cliente: ${clientNameForSale || "Não informado"}. Pagamento: ${paymentMethod}. Total: R$ ${total.toFixed(2)}`
-    });
-
-    handlePrintSaleReceipt({
-      saleId,
-      date: saleDate,
-      clientName: clientNameForSale,
-      items: cartItems,
-      paymentMethod,
-      totalAmount: total,
-    });
-    
-    resetSaleForm();
+    addSaleMutation.mutate(saleToSave);
   };
 
   return (
@@ -250,7 +251,7 @@ export default function CounterSalesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Nova Venda</CardTitle>
-          <CardDescription>Registre vendas de produtos e acessórios no balcão. (Vendas salvas apenas em memória local por enquanto)</CardDescription>
+          <CardDescription>Registre vendas de produtos e acessórios no balcão.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -360,7 +361,7 @@ export default function CounterSalesPage() {
                 saleId: `PREVIEW-${Date.now().toString().slice(-6)}`,
                 date: new Date().toLocaleString('pt-BR'),
                 clientName: clientNameForSale,
-                items: cartItems,
+                items: cartItems.map(({id, ...item}) => item),
                 paymentMethod,
                 totalAmount: calculateTotal()
             })} 
@@ -372,13 +373,20 @@ export default function CounterSalesPage() {
             <Button 
               size="lg" 
               onClick={handleCompleteSale} 
-              disabled={cartItems.length === 0 || !paymentMethod}
+              disabled={cartItems.length === 0 || !paymentMethod || addSaleMutation.isPending}
               className="w-full sm:w-auto"
             >
-              <DollarSign className="mr-2 h-5 w-5" /> Concluir Venda
+              {addSaleMutation.isPending ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <DollarSign className="mr-2 h-5 w-5" />
+              )}
+              Concluir Venda
             </Button>
         </CardFooter>
       </Card>
     </div>
   );
 }
+
+    
