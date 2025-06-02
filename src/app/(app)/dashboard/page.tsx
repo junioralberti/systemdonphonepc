@@ -1,60 +1,133 @@
 
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, CreditCard, DollarSign, Users, Building, ImageUp, Save } from "lucide-react";
+import { Activity, CreditCard, DollarSign, Users, Building, Save, Loader2, UploadCloud } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { getEstablishmentSettings, saveEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
 
 export default function DashboardPage() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   const [businessName, setBusinessName] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
   const [businessCnpj, setBusinessCnpj] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
-  const [businessLogo, setBusinessLogo] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [isSavingEstablishment, setIsSavingEstablishment] = useState(false);
+  const [businessLogoFile, setBusinessLogoFile] = useState<File | null>(null); // For new file upload
+  const [logoPreview, setLogoPreview] = useState<string | null>(null); // For display (Data URL or existing URL)
 
-  const { toast } = useToast();
+  const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError } = useQuery<EstablishmentSettings | null, Error>({
+    queryKey: ["establishmentSettings"],
+    queryFn: getEstablishmentSettings,
+  });
+
+  useEffect(() => {
+    if (establishmentSettings) {
+      setBusinessName(establishmentSettings.businessName || "");
+      setBusinessAddress(establishmentSettings.businessAddress || "");
+      setBusinessCnpj(establishmentSettings.businessCnpj || "");
+      setBusinessPhone(establishmentSettings.businessPhone || "");
+      setBusinessEmail(establishmentSettings.businessEmail || "");
+      if (establishmentSettings.logoUrl) {
+        setLogoPreview(establishmentSettings.logoUrl);
+      } else {
+        setLogoPreview(null);
+      }
+      setBusinessLogoFile(null); // Clear file input if data is loaded from DB
+    }
+  }, [establishmentSettings]);
+
+  useEffect(() => {
+    if (settingsError) {
+      toast({
+        title: "Erro ao Carregar Dados",
+        description: "Não foi possível carregar os dados do estabelecimento.",
+        variant: "destructive",
+      });
+    }
+  }, [settingsError, toast]);
+  
+  const saveSettingsMutation = useMutation({
+    mutationFn: ({ data, logoFile }: { data: Omit<EstablishmentSettings, 'updatedAt' | 'logoUrl'>, logoFile?: File | null }) => saveEstablishmentSettings(data, logoFile),
+    onSuccess: (savedData) => {
+      queryClient.invalidateQueries({ queryKey: ["establishmentSettings"] });
+      toast({
+        title: "Sucesso!",
+        description: "Dados do estabelecimento salvos com sucesso.",
+      });
+      if (savedData.logoUrl) {
+        setLogoPreview(savedData.logoUrl);
+      } else if (logoPreview && !businessLogoFile) {
+        // Keep current preview if no new file and logo wasn't explicitly removed
+      } else {
+         setLogoPreview(null);
+      }
+      setBusinessLogoFile(null); // Clear the file input after saving
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao Salvar",
+        description: `Não foi possível salvar os dados: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
 
   const handleLogoChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setBusinessLogo(file);
+      setBusinessLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setLogoPreview(reader.result as string);
+        setLogoPreview(reader.result as string); // Show Data URL preview for new file
       };
       reader.readAsDataURL(file);
     } else {
-      setBusinessLogo(null);
-      setLogoPreview(null);
+      // If user clears file input, decide if we want to remove existing logo
+      // For now, this means "no change" or "remove if no existing logoUrl"
+      setBusinessLogoFile(null); 
+      // If there was an existing logo from DB, keep its preview unless explicitly removed
+      if (!establishmentSettings?.logoUrl) {
+          setLogoPreview(null);
+      }
     }
+  };
+  
+  const handleRemoveLogo = () => {
+    setBusinessLogoFile(null); // Indicate removal if it was a new file
+    setLogoPreview(null); // Clear preview
+    // The actual deletion from storage will happen on save if businessLogoFile is explicitly set to null
+    // and a logoUrl existed.
   };
 
   const handleSaveEstablishmentData = async (e: FormEvent) => {
     e.preventDefault();
-    setIsSavingEstablishment(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log("Dados do Estabelecimento (simulado):", {
-      name: businessName,
-      address: businessAddress,
-      cnpj: businessCnpj,
-      phone: businessPhone,
-      email: businessEmail,
-      logo: businessLogo?.name || "Nenhum logo selecionado",
-    });
-    toast({
-      title: "Sucesso!",
-      description: "Dados do estabelecimento salvos (simulação).",
-    });
-    setIsSavingEstablishment(false);
+    const settingsToSave: Omit<EstablishmentSettings, 'updatedAt' | 'logoUrl'> = {
+      businessName,
+      businessAddress,
+      businessCnpj,
+      businessPhone,
+      businessEmail,
+    };
+    // If businessLogoFile is null AND logoPreview is null, it means remove logo.
+    // If businessLogoFile has a value, it's a new upload.
+    // If businessLogoFile is null but logoPreview has a value (from DB), it means "no change to logo".
+    
+    let logoActionFile: File | null | undefined = businessLogoFile; // undefined means no change, null means remove, File means upload
+    if (!businessLogoFile && !logoPreview) { // This condition means user cleared the logo
+        logoActionFile = null; // Signal to remove
+    }
+    
+    saveSettingsMutation.mutate({ data: settingsToSave, logoFile: logoActionFile });
   };
 
 
@@ -127,6 +200,7 @@ export default function DashboardPage() {
         </CardHeader>
         <form onSubmit={handleSaveEstablishmentData}>
           <CardContent className="space-y-4">
+            {isLoadingSettings && <p className="text-sm text-muted-foreground flex items-center"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando dados do estabelecimento...</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="businessName">Nome do Estabelecimento</Label>
@@ -152,21 +226,37 @@ export default function DashboardPage() {
               </div>
             </div>
             <div>
-              <Label htmlFor="businessLogo">Logo do Estabelecimento</Label>
-              <Input id="businessLogo" type="file" accept="image/*" onChange={handleLogoChange} className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90" />
-              {logoPreview && (
-                <div className="mt-4 p-2 border rounded-md inline-block">
-                  <Image src={logoPreview} alt="Pré-visualização do Logo" width={100} height={100} className="object-contain rounded" data-ai-hint="store logo" />
+              <Label htmlFor="businessLogoFile">Logo do Estabelecimento</Label>
+              <div className="flex items-center gap-3">
+                <Input 
+                    id="businessLogoFile" 
+                    type="file" 
+                    accept="image/png, image/jpeg, image/webp" 
+                    onChange={handleLogoChange} 
+                    className="flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90" 
+                />
+                {logoPreview && (
+                    <Button type="button" variant="outline" size="sm" onClick={handleRemoveLogo}>Remover Logo</Button>
+                )}
+              </div>
+              {logoPreview ? (
+                <div className="mt-4 p-2 border rounded-md inline-block bg-muted">
+                  <Image src={logoPreview} alt="Pré-visualização do Logo" width={100} height={100} className="object-contain rounded max-h-[100px]" data-ai-hint="store logo"/>
                 </div>
+              ) : (
+                 <div className="mt-3 flex items-center justify-center w-full h-24 border-2 border-dashed rounded-md text-muted-foreground">
+                    <UploadCloud className="mr-2 h-6 w-6" />
+                    <span>{businessLogoFile ? businessLogoFile.name : "Nenhum logo selecionado"}</span>
+                 </div>
               )}
-              {!logoPreview && businessLogo && (
-                <p className="text-sm text-muted-foreground mt-2">Arquivo selecionado: {businessLogo.name}</p>
+              {!logoPreview && businessLogoFile && (
+                <p className="text-sm text-muted-foreground mt-2">Novo arquivo: {businessLogoFile.name}</p>
               )}
             </div>
-            <Button type="submit" disabled={isSavingEstablishment} className="w-full sm:w-auto">
-              {isSavingEstablishment ? (
+            <Button type="submit" disabled={saveSettingsMutation.isPending || isLoadingSettings} className="w-full sm:w-auto">
+              {saveSettingsMutation.isPending ? (
                 <>
-                  <Save className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Salvando...
                 </>
               ) : (
@@ -193,4 +283,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
