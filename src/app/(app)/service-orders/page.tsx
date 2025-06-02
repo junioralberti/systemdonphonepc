@@ -21,13 +21,6 @@ const serviceOrderStatuses: ServiceOrderStatus[] = ["Aberta", "Em andamento", "A
 type DeviceType = "Celular" | "Notebook" | "Tablet" | "Placa" | "Outro";
 const deviceTypes: DeviceType[] = ["Celular", "Notebook", "Tablet", "Placa", "Outro"];
 
-// Mock: Lista de técnicos
-const mockTechnicians = [
-  { id: "tech1", name: "Carlos Silva" },
-  { id: "tech2", name: "Ana Pereira" },
-  { id: "tech3", name: "Roberto Alves" },
-];
-
 interface SoldProductItem {
   tempId: string;
   name: string;
@@ -42,7 +35,7 @@ interface ServiceOrder {
   openingDate: string; // Data/hora automático
   deliveryForecastDate?: string; // Definido pelo técnico
   status: ServiceOrderStatus;
-  responsibleTechnicianId?: string;
+  responsibleTechnicianName?: string; // Alterado de Id para Name
 
   // Dados do Cliente
   clientName: string; 
@@ -82,7 +75,7 @@ export default function ServiceOrdersPage() {
   const [openingDate, setOpeningDate] = useState(""); 
   const [deliveryForecastDate, setDeliveryForecastDate] = useState("");
   const [status, setStatus] = useState<ServiceOrderStatus>("Aberta");
-  const [responsibleTechnicianId, setResponsibleTechnicianId] = useState("");
+  const [responsibleTechnicianName, setResponsibleTechnicianName] = useState(""); // Alterado de Id para Name
 
   const [clientName, setClientName] = useState("");
   const [clientCpfCnpj, setClientCpfCnpj] = useState("");
@@ -114,7 +107,7 @@ export default function ServiceOrdersPage() {
   const resetFormFields = () => {
     setDeliveryForecastDate("");
     setStatus("Aberta");
-    setResponsibleTechnicianId("");
+    setResponsibleTechnicianName(""); // Alterado de Id para Name
     setClientName("");
     setClientCpfCnpj("");
     setClientPhone("");
@@ -200,7 +193,7 @@ export default function ServiceOrdersPage() {
       openingDate: newOpeningDate,
       deliveryForecastDate,
       status,
-      responsibleTechnicianId,
+      responsibleTechnicianName, // Alterado de Id para Name
       clientName,
       clientCpfCnpj,
       clientPhone,
@@ -234,22 +227,19 @@ export default function ServiceOrdersPage() {
 
   const handlePrintOS = (order: Partial<ServiceOrder>) => {
     console.log("Simulando impressão da OS:", order);
-    // This could be expanded to open a new window with a printable layout
-    // For now, it uses alert and console.log
-    
+        
     let printContent = `----------------------------------------\n`;
     printContent += `       ORDEM DE SERVIÇO: ${order.osNumber}\n`;
     printContent += `----------------------------------------\n`;
     printContent += `Data Abertura: ${order.openingDate}\n`;
     if(order.deliveryForecastDate) {
-      const date = new Date(order.deliveryForecastDate);
-      const formattedDate = `${('0' + (date.getDate() + 1)).slice(-2)}/${('0' + (date.getMonth() + 1)).slice(-2)}/${date.getFullYear()}`;
+      const dateParts = order.deliveryForecastDate.split('-'); // yyyy-mm-dd
+      const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
       printContent += `Previsão Entrega: ${formattedDate}\n`;
     }
     printContent += `Status: ${order.status}\n`;
-    if(order.responsibleTechnicianId) {
-        const tech = mockTechnicians.find(t => t.id === order.responsibleTechnicianId);
-        printContent += `Técnico: ${tech ? tech.name : 'N/A'}\n`;
+    if(order.responsibleTechnicianName) { // Alterado de Id para Name
+        printContent += `Técnico: ${order.responsibleTechnicianName}\n`; // Usar diretamente o nome
     }
     printContent += `\n--- Cliente ---\n`;
     printContent += `Nome: ${order.clientName}\n`;
@@ -290,28 +280,21 @@ export default function ServiceOrdersPage() {
     printContent += `----------------------------------------\n`;
     if(order.internalObservations) printContent += `\nObs. Internas: ${order.internalObservations}\n`;
 
-    // For a real print, you'd open a new window and write this content to it, then call window.print()
-    // window.print() on the main window is usually blocked or opens the whole page for printing.
-    
     const printWindow = window.open('', '_blank', 'height=600,width=800');
     if (printWindow) {
         printWindow.document.write('<html lang="pt-BR"><head><title>Imprimir OS</title>');
         printWindow.document.write('<style> body { font-family: "Courier New", Courier, monospace; white-space: pre-wrap; line-height: 1.4; font-size: 10pt; margin: 20px;} table { width: 100%; border-collapse: collapse; margin-bottom: 10px;} th, td { border: 1px solid #ccc; padding: 4px; text-align: left;} .total { font-weight: bold; } </style>');
-        printContent = printContent.replace(/\n/g, '<br>'); // Basic HTML formatting
         
-        // Simpler HTML structure for the print content
-        let htmlContent = `<pre>${printContent}</pre>`; // Using <pre> for preserving whitespace and newlines
+        let htmlContent = `<pre>${printContent}</pre>`; 
         
         printWindow.document.write('</head><body>');
         printWindow.document.write(htmlContent);
         printWindow.document.write('</body></html>');
         printWindow.document.close();
-        printWindow.focus(); // Necessary for some browsers.
+        printWindow.focus(); 
         
-        // Timeout to allow content to load before printing
         setTimeout(() => {
           printWindow.print();
-          // printWindow.close(); // Optionally close window after print dialog
         }, 500);
 
     } else {
@@ -384,12 +367,12 @@ export default function ServiceOrdersPage() {
                         </div>
                         <div>
                           <Label htmlFor="osTechnician">Técnico Responsável</Label>
-                           <Select value={responsibleTechnicianId} onValueChange={setResponsibleTechnicianId}>
-                            <SelectTrigger id="osTechnician"><SelectValue placeholder="Selecione um técnico" /></SelectTrigger>
-                            <SelectContent>
-                              {mockTechnicians.map(tech => <SelectItem key={tech.id} value={tech.id}>{tech.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                           <Input 
+                                id="osTechnician" 
+                                value={responsibleTechnicianName} // Alterado de Id para Name
+                                onChange={(e) => setResponsibleTechnicianName(e.target.value)} // Alterado de Id para Name
+                                placeholder="Nome do técnico" 
+                            />
                         </div>
                       </div>
                     </CardContent>
@@ -618,7 +601,8 @@ export default function ServiceOrdersPage() {
                     id: "PREVIEW", 
                     osNumber: `OS-${Date.now().toString().slice(-6)}` , openingDate: new Date().toLocaleString('pt-BR'),
                     clientName, deviceBrandModel, problemReportedByClient, status, 
-                    deliveryForecastDate, responsibleTechnicianId, clientCpfCnpj, clientPhone, clientEmail,
+                    deliveryForecastDate, responsibleTechnicianName, // Alterado de Id para Name
+                    clientCpfCnpj, clientPhone, clientEmail,
                     deviceType, deviceImeiSerial, deviceColor, deviceAccessories, technicalDiagnosis, internalObservations,
                     servicesPerformedDescription, partsUsedDescription,
                     serviceManualValue: parseFloat(serviceManualValueInput.replace(',', '.')) || 0,
