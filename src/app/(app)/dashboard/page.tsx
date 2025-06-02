@@ -17,11 +17,12 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [businessName, setBusinessName] = useState("");
-  const [businessAddress, setBusinessAddress] = useState("");
-  const [businessCnpj, setBusinessCnpj] = useState("");
-  const [businessPhone, setBusinessPhone] = useState("");
-  const [businessEmail, setBusinessEmail] = useState("");
+  // Initialize with DonPhone default values
+  const [businessName, setBusinessName] = useState("DONPHONE INFORMÁTICA E CELULARES");
+  const [businessAddress, setBusinessAddress] = useState("RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ");
+  const [businessCnpj, setBusinessCnpj] = useState("58.435.813/0004-94");
+  const [businessPhone, setBusinessPhone] = useState("49991287685");
+  const [businessEmail, setBusinessEmail] = useState("contato@donphone.com");
   const [businessLogoFile, setBusinessLogoFile] = useState<File | null>(null); 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
@@ -44,23 +45,45 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
+    // This effect runs when establishmentSettings data is fetched or changes.
+    // It will overwrite the initial DonPhone defaults if specific values are found in Firestore.
     if (establishmentSettings) {
-      setBusinessName(establishmentSettings.businessName || "");
-      setBusinessAddress(establishmentSettings.businessAddress || "");
-      setBusinessCnpj(establishmentSettings.businessCnpj || "");
-      setBusinessPhone(establishmentSettings.businessPhone || "");
-      setBusinessEmail(establishmentSettings.businessEmail || "");
-      if (establishmentSettings.logoUrl) {
-        setLogoPreview(establishmentSettings.logoUrl);
+      // If a field exists in Firestore, use it. Otherwise, the useState default (DonPhone) remains.
+      // If a field is explicitly saved as an empty string in Firestore, that empty string will be used.
+      if (establishmentSettings.businessName !== undefined) setBusinessName(establishmentSettings.businessName);
+      if (establishmentSettings.businessAddress !== undefined) setBusinessAddress(establishmentSettings.businessAddress);
+      if (establishmentSettings.businessCnpj !== undefined) setBusinessCnpj(establishmentSettings.businessCnpj);
+      if (establishmentSettings.businessPhone !== undefined) setBusinessPhone(establishmentSettings.businessPhone);
+      if (establishmentSettings.businessEmail !== undefined) setBusinessEmail(establishmentSettings.businessEmail);
+      
+      // Handle logo: if logoUrl is present (even empty string), update preview.
+      // If logoUrl is undefined in DB, logoPreview (initially null) is unchanged by this block.
+      if (establishmentSettings.logoUrl !== undefined) {
+        setLogoPreview(establishmentSettings.logoUrl || null); // If logoUrl is "", preview becomes null.
       } else {
-        setLogoPreview(null);
+         setLogoPreview(null); // Ensure preview is cleared if logoUrl is not in settings
       }
+    } else if (!isLoadingSettings) {
+      // If settings are explicitly null (not found) and not loading,
+      // ensure form fields reset to the initial DonPhone defaults (they should already be this due to useState).
+      // This also ensures logoPreview is cleared if no settings are found.
+      setBusinessName("DONPHONE INFORMÁTICA E CELULARES");
+      setBusinessAddress("RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ");
+      setBusinessCnpj("58.435.813/0004-94");
+      setBusinessPhone("49991287685");
+      setBusinessEmail("contato@donphone.com");
+      setLogoPreview(null);
+    }
+
+    // Always reset the file input display when data loads or settings change,
+    // but only if not still loading, to avoid clearing a selection prematurely.
+    if (!isLoadingSettings) {
       setBusinessLogoFile(null); 
     }
-  }, [establishmentSettings]);
+  }, [establishmentSettings, isLoadingSettings]);
 
   useEffect(() => {
-    if (settingsError && !isLoadingSettings) { // Apenas mostrar toast se não estiver carregando
+    if (settingsError && !isLoadingSettings) { 
       toast({
         title: "Erro ao Carregar Dados do Estabelecimento",
         description: settingsError.message || "Não foi possível carregar os dados. Verifique sua conexão e as regras do Firestore.",
@@ -78,12 +101,11 @@ export default function DashboardPage() {
         title: "Sucesso!",
         description: "Dados do estabelecimento salvos com sucesso.",
       });
+      // Update preview based on saved data, which might include a new or removed logoUrl
       if (savedData.logoUrl) {
         setLogoPreview(savedData.logoUrl);
-      } else if (logoPreview && !businessLogoFile) {
-        // Manter preview atual se nenhum novo arquivo e logo não foi explicitamente removido
       } else {
-         setLogoPreview(null);
+         setLogoPreview(null); // If logoUrl is empty or undefined after save, clear preview
       }
       setBusinessLogoFile(null); 
     },
@@ -108,17 +130,18 @@ export default function DashboardPage() {
       reader.readAsDataURL(file);
     } else {
       setBusinessLogoFile(null); 
-      // Mantém o logo preview se já existir um salvo, a menos que esteja sendo removido
-      if (!establishmentSettings?.logoUrl) {
+      // If a file is deselected, clear the preview *unless* there's an existing saved logoUrl.
+      if (!establishmentSettings?.logoUrl && !logoPreview?.startsWith('data:')) { // only clear if no saved URL and current preview isn't a new data URI
           setLogoPreview(null);
+      } else if (establishmentSettings?.logoUrl && !businessLogoFile) {
+          setLogoPreview(establishmentSettings.logoUrl); // revert to saved logo if file deselected
       }
     }
   };
   
   const handleRemoveLogo = () => {
-    setBusinessLogoFile(null); // Sinaliza que o logo deve ser removido
-    setLogoPreview(null); // Limpa a pré-visualização
-    // A lógica de deleção do storage e atualização no DB ocorrerá no handleSaveEstablishmentData
+    setBusinessLogoFile(null); 
+    setLogoPreview(null); 
   };
 
   const handleSaveEstablishmentData = async (e: FormEvent) => {
@@ -131,15 +154,9 @@ export default function DashboardPage() {
       businessEmail,
     };
     
-    // Se logoPreview for null E businessLogoFile for null, significa que o usuário clicou em "Remover Logo" e não selecionou um novo.
-    // Se logoPreview tiver valor E businessLogoFile for null, o usuário não alterou o logo existente.
-    // Se businessLogoFile tiver valor, o usuário selecionou um novo logo.
     let logoActionFile: File | null | undefined = businessLogoFile; 
     if (logoPreview === null && businessLogoFile === null && establishmentSettings?.logoUrl) { 
-        // Indica remoção explícita de um logo existente.
-        // A função saveEstablishmentSettings precisa saber que é para remover.
-        // Passar `null` como logoFile quando logoPreview é null pode ser o sinal.
-        logoActionFile = null;
+        logoActionFile = null; // Signal for removal
     }
     
     saveSettingsMutation.mutate({ data: settingsToSave, logoFile: logoActionFile });
@@ -166,7 +183,7 @@ export default function DashboardPage() {
           <CardContent>
             {renderStatValue(totalRevenue, isLoadingDashboardStats)}
             <p className="text-xs text-muted-foreground">
-              {isLoadingDashboardStats ? <Skeleton className="h-3 w-32" /> : "Dados de exemplo."}
+              {isLoadingDashboardStats ? <Skeleton className="h-3 w-32" /> : "Cálculo pendente."}
             </p>
           </CardContent>
         </Card>
@@ -180,7 +197,7 @@ export default function DashboardPage() {
           <CardContent>
             {renderStatValue(activeClients, isLoadingDashboardStats)}
              <p className="text-xs text-muted-foreground">
-              {isLoadingDashboardStats ? <Skeleton className="h-3 w-28" /> : "Contagem de exemplo."}
+              {isLoadingDashboardStats ? <Skeleton className="h-3 w-28" /> : "Cálculo pendente."}
             </p>
           </CardContent>
         </Card>
@@ -192,7 +209,7 @@ export default function DashboardPage() {
           <CardContent>
              {renderStatValue(openServiceOrders, isLoadingDashboardStats)}
              <p className="text-xs text-muted-foreground">
-              {isLoadingDashboardStats ? <Skeleton className="h-3 w-24" /> : "Contagem de exemplo."}
+              {isLoadingDashboardStats ? <Skeleton className="h-3 w-24" /> : "Cálculo pendente."}
             </p>
           </CardContent>
         </Card>
@@ -204,7 +221,7 @@ export default function DashboardPage() {
           <CardContent>
             {renderStatValue(pendingRepairs, isLoadingDashboardStats)}
             <p className="text-xs text-muted-foreground">
-             {isLoadingDashboardStats ? <Skeleton className="h-3 w-36" /> : "Contagem de exemplo."}
+             {isLoadingDashboardStats ? <Skeleton className="h-3 w-36" /> : "Cálculo pendente."}
             </p>
           </CardContent>
         </Card>
@@ -294,7 +311,7 @@ export default function DashboardPage() {
                   </div>
                   {logoPreview ? (
                     <div className="mt-4 p-2 border rounded-md inline-block bg-muted">
-                      <Image src={logoPreview} alt="Pré-visualização do Logo" width={120} height={120} className="object-contain rounded max-h-[120px] min-h-[50px]" data-ai-hint="store logo" />
+                      <Image src={logoPreview} alt="Pré-visualização do Logo" width={120} height={120} className="object-contain rounded max-h-[120px] min-h-[50px]" data-ai-hint="store logo"/>
                     </div>
                   ) : (
                      <div className="mt-3 flex items-center justify-center w-full h-24 border-2 border-dashed rounded-md text-muted-foreground bg-muted/50">
@@ -305,6 +322,9 @@ export default function DashboardPage() {
                   {!logoPreview && businessLogoFile && (
                     <p className="text-sm text-muted-foreground mt-2">Novo arquivo selecionado: {businessLogoFile.name}. Clique em "Salvar Dados" para aplicar.</p>
                   )}
+                   {logoPreview && !businessLogoFile && establishmentSettings?.logoUrl && logoPreview === establishmentSettings.logoUrl &&(
+                     <p className="text-xs text-muted-foreground mt-1">Logo atual salvo. Para alterar, selecione um novo arquivo.</p>
+                   )}
                 </div>
                 <Button type="submit" disabled={saveSettingsMutation.isPending || isLoadingSettings} className="w-full sm:w-auto">
                   {saveSettingsMutation.isPending ? (
@@ -332,12 +352,8 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">Nenhuma atividade recente para exibir. (Funcionalidade pendente)</p>
-          {/* Placeholder for recent activity list */}
         </CardContent>
       </Card>
     </div>
   );
 }
-
-
-    
