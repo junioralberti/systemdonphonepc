@@ -10,8 +10,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Phone } from 'lucide-react'; // Using Phone as a generic logo icon
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('teste@donphone.com');
+  const [password, setPassword] = useState('senha123');
   const { login } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
