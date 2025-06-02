@@ -4,7 +4,7 @@
 import { useState, type ChangeEvent, type FormEvent, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, CreditCard, DollarSign, Users, Building, Save, Loader2, UploadCloud, AlertTriangle } from "lucide-react";
+import { Activity, CreditCard, DollarSign, Users, Building, Save, Loader2, UploadCloud, AlertTriangle, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -25,27 +25,21 @@ export default function DashboardPage() {
   const [businessLogoFile, setBusinessLogoFile] = useState<File | null>(null); 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
-  // States for dashboard card data - to be implemented with actual data fetching later
   const [totalRevenue, setTotalRevenue] = useState<string>("N/D");
   const [activeClients, setActiveClients] = useState<string>("N/D");
   const [openServiceOrders, setOpenServiceOrders] = useState<string>("N/D");
   const [pendingRepairs, setPendingRepairs] = useState<string>("N/D");
   const [isLoadingDashboardStats, setIsLoadingDashboardStats] = useState(true);
 
-  const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError } = useQuery<EstablishmentSettings | null, Error>({
+  const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError, refetch: refetchEstablishmentSettings } = useQuery<EstablishmentSettings | null, Error>({
     queryKey: ["establishmentSettings"],
     queryFn: getEstablishmentSettings,
   });
 
   useEffect(() => {
-    // Simulate loading for dashboard stats for now
-    const timer = setTimeout(() => setIsLoadingDashboardStats(false), 1000); 
+    const timer = setTimeout(() => setIsLoadingDashboardStats(false), 1200); 
     return () => clearTimeout(timer);
-    // TODO: Implement actual data fetching for dashboard cards
-    // Example:
-    // fetchTotalRevenue().then(data => setTotalRevenue(data.formattedValue));
-    // fetchActiveClients().then(data => setActiveClients(data.count));
-    // ...
+    // TODO: Implementar busca real de dados para os cards do dashboard
   }, []);
 
 
@@ -66,14 +60,15 @@ export default function DashboardPage() {
   }, [establishmentSettings]);
 
   useEffect(() => {
-    if (settingsError) {
+    if (settingsError && !isLoadingSettings) { // Apenas mostrar toast se não estiver carregando
       toast({
-        title: "Erro ao Carregar Dados",
-        description: "Não foi possível carregar os dados do estabelecimento.",
+        title: "Erro ao Carregar Dados do Estabelecimento",
+        description: settingsError.message || "Não foi possível carregar os dados. Verifique sua conexão e as regras do Firestore.",
         variant: "destructive",
+        duration: 7000,
       });
     }
-  }, [settingsError, toast]);
+  }, [settingsError, toast, isLoadingSettings]);
   
   const saveSettingsMutation = useMutation({
     mutationFn: ({ data, logoFile }: { data: Omit<EstablishmentSettings, 'updatedAt' | 'logoUrl'>, logoFile?: File | null }) => saveEstablishmentSettings(data, logoFile),
@@ -86,7 +81,7 @@ export default function DashboardPage() {
       if (savedData.logoUrl) {
         setLogoPreview(savedData.logoUrl);
       } else if (logoPreview && !businessLogoFile) {
-        // Keep current preview if no new file and logo wasn't explicitly removed
+        // Manter preview atual se nenhum novo arquivo e logo não foi explicitamente removido
       } else {
          setLogoPreview(null);
       }
@@ -113,6 +108,7 @@ export default function DashboardPage() {
       reader.readAsDataURL(file);
     } else {
       setBusinessLogoFile(null); 
+      // Mantém o logo preview se já existir um salvo, a menos que esteja sendo removido
       if (!establishmentSettings?.logoUrl) {
           setLogoPreview(null);
       }
@@ -120,8 +116,9 @@ export default function DashboardPage() {
   };
   
   const handleRemoveLogo = () => {
-    setBusinessLogoFile(null); 
-    setLogoPreview(null); 
+    setBusinessLogoFile(null); // Sinaliza que o logo deve ser removido
+    setLogoPreview(null); // Limpa a pré-visualização
+    // A lógica de deleção do storage e atualização no DB ocorrerá no handleSaveEstablishmentData
   };
 
   const handleSaveEstablishmentData = async (e: FormEvent) => {
@@ -134,16 +131,23 @@ export default function DashboardPage() {
       businessEmail,
     };
     
+    // Se logoPreview for null E businessLogoFile for null, significa que o usuário clicou em "Remover Logo" e não selecionou um novo.
+    // Se logoPreview tiver valor E businessLogoFile for null, o usuário não alterou o logo existente.
+    // Se businessLogoFile tiver valor, o usuário selecionou um novo logo.
     let logoActionFile: File | null | undefined = businessLogoFile; 
-    if (!businessLogoFile && !logoPreview) { 
-        logoActionFile = null; 
+    if (logoPreview === null && businessLogoFile === null && establishmentSettings?.logoUrl) { 
+        // Indica remoção explícita de um logo existente.
+        // A função saveEstablishmentSettings precisa saber que é para remover.
+        // Passar `null` como logoFile quando logoPreview é null pode ser o sinal.
+        logoActionFile = null;
     }
     
     saveSettingsMutation.mutate({ data: settingsToSave, logoFile: logoActionFile });
   };
 
   const renderStatValue = (value: string, isLoading: boolean) => {
-    if (isLoading) return <Skeleton className="h-7 w-24" />;
+    if (isLoading) return <Skeleton className="h-7 w-24 rounded" />;
+    if (value === "N/D") return <div className="text-2xl font-bold text-muted-foreground/80">{value}</div>;
     return <div className="text-2xl font-bold">{value}</div>;
   };
 
@@ -162,7 +166,7 @@ export default function DashboardPage() {
           <CardContent>
             {renderStatValue(totalRevenue, isLoadingDashboardStats)}
             <p className="text-xs text-muted-foreground">
-              {/* Placeholder for percentage change */}
+              {isLoadingDashboardStats ? <Skeleton className="h-3 w-32" /> : "Dados de exemplo."}
             </p>
           </CardContent>
         </Card>
@@ -176,7 +180,7 @@ export default function DashboardPage() {
           <CardContent>
             {renderStatValue(activeClients, isLoadingDashboardStats)}
              <p className="text-xs text-muted-foreground">
-              {/* Placeholder for percentage change */}
+              {isLoadingDashboardStats ? <Skeleton className="h-3 w-28" /> : "Contagem de exemplo."}
             </p>
           </CardContent>
         </Card>
@@ -188,7 +192,7 @@ export default function DashboardPage() {
           <CardContent>
              {renderStatValue(openServiceOrders, isLoadingDashboardStats)}
              <p className="text-xs text-muted-foreground">
-              {/* Placeholder for percentage change */}
+              {isLoadingDashboardStats ? <Skeleton className="h-3 w-24" /> : "Contagem de exemplo."}
             </p>
           </CardContent>
         </Card>
@@ -200,7 +204,7 @@ export default function DashboardPage() {
           <CardContent>
             {renderStatValue(pendingRepairs, isLoadingDashboardStats)}
             <p className="text-xs text-muted-foreground">
-             {/* Placeholder for percentage change */}
+             {isLoadingDashboardStats ? <Skeleton className="h-3 w-36" /> : "Contagem de exemplo."}
             </p>
           </CardContent>
         </Card>
@@ -217,14 +221,18 @@ export default function DashboardPage() {
         <form onSubmit={handleSaveEstablishmentData}>
           <CardContent className="space-y-4">
             {isLoadingSettings && (
-                <div className="space-y-4">
-                    <Skeleton className="h-6 w-1/4 mb-2" />
+                <div className="space-y-4 pt-2">
+                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Carregando dados do estabelecimento...</span>
+                    </div>
+                    <Skeleton className="h-6 w-1/4 mb-1" />
                     <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-6 w-1/4 mb-2" />
+                    <Skeleton className="h-6 w-1/4 mb-1" />
                     <Skeleton className="h-10 w-full" />
-                     <Skeleton className="h-6 w-1/4 mb-2" />
+                     <Skeleton className="h-6 w-1/4 mb-1" />
                     <Skeleton className="h-24 w-full" />
-                    <Skeleton className="h-10 w-32" />
+                    <Skeleton className="h-10 w-32 mt-3" />
                 </div>
             )}
             {settingsError && !isLoadingSettings && (
@@ -232,6 +240,16 @@ export default function DashboardPage() {
                     <AlertTriangle className="h-10 w-10" />
                     <p className="text-md font-medium">Erro ao carregar dados do estabelecimento</p>
                     <p className="text-sm text-muted-foreground">{settingsError.message}</p>
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => refetchEstablishmentSettings()} 
+                        className="mt-3"
+                        disabled={isLoadingSettings}
+                    >
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Tentar Novamente
+                    </Button>
                  </div>
             )}
             {!isLoadingSettings && !settingsError && (
@@ -262,7 +280,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <Label htmlFor="businessLogoFile">Logo do Estabelecimento</Label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                     <Input 
                         id="businessLogoFile" 
                         type="file" 
@@ -276,16 +294,16 @@ export default function DashboardPage() {
                   </div>
                   {logoPreview ? (
                     <div className="mt-4 p-2 border rounded-md inline-block bg-muted">
-                      <Image src={logoPreview} alt="Pré-visualização do Logo" width={100} height={100} className="object-contain rounded max-h-[100px]" data-ai-hint="store logo" />
+                      <Image src={logoPreview} alt="Pré-visualização do Logo" width={120} height={120} className="object-contain rounded max-h-[120px] min-h-[50px]" data-ai-hint="store logo" />
                     </div>
                   ) : (
-                     <div className="mt-3 flex items-center justify-center w-full h-24 border-2 border-dashed rounded-md text-muted-foreground">
+                     <div className="mt-3 flex items-center justify-center w-full h-24 border-2 border-dashed rounded-md text-muted-foreground bg-muted/50">
                         <UploadCloud className="mr-2 h-6 w-6" />
                         <span>{businessLogoFile ? businessLogoFile.name : "Nenhum logo selecionado"}</span>
                      </div>
                   )}
                   {!logoPreview && businessLogoFile && (
-                    <p className="text-sm text-muted-foreground mt-2">Novo arquivo: {businessLogoFile.name}</p>
+                    <p className="text-sm text-muted-foreground mt-2">Novo arquivo selecionado: {businessLogoFile.name}. Clique em "Salvar Dados" para aplicar.</p>
                   )}
                 </div>
                 <Button type="submit" disabled={saveSettingsMutation.isPending || isLoadingSettings} className="w-full sm:w-auto">
@@ -320,3 +338,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
+    
