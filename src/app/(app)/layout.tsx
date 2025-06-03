@@ -51,13 +51,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar>
         <SidebarHeader className="p-4 border-b border-sidebar-border">
           <Link href="/dashboard" className="flex items-center gap-2 text-xl font-semibold text-primary">
-            <Image 
-              src="/donphone-logo.png" 
-              alt="DonPhone Logo" 
-              width={28} 
-              height={28} 
-              data-ai-hint="company logo"
-            />
             <span className="font-headline">DonPhone</span>
           </Link>
         </SidebarHeader>
