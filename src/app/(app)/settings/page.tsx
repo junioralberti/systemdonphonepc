@@ -14,6 +14,29 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Building, Save, Loader2, UploadCloud, AlertTriangle, RotateCcw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const DONPHONE_DEFAULTS_REFERENCE: EstablishmentSettings = {
+  businessName: "DONPHONE INFORMÁTICA E CELULARES",
+  businessAddress: "RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ",
+  businessCnpj: "58.435.813/0004-94",
+  businessPhone: "49991287685",
+  businessEmail: "contato@donphone.com",
+  logoUrl: "https://placehold.co/180x60.png",
+};
+
+// Function to check if current settings are the default ones returned by the service when no DB entry exists
+const isDataEffectivelyDefault = (settings: EstablishmentSettings | null): boolean => {
+  if (!settings) return true; // This case should ideally not be hit if service always returns an object
+  return (
+    settings.businessName === DONPHONE_DEFAULTS_REFERENCE.businessName &&
+    settings.businessAddress === DONPHONE_DEFAULTS_REFERENCE.businessAddress &&
+    settings.businessCnpj === DONPHONE_DEFAULTS_REFERENCE.businessCnpj &&
+    settings.businessPhone === DONPHONE_DEFAULTS_REFERENCE.businessPhone &&
+    settings.businessEmail === DONPHONE_DEFAULTS_REFERENCE.businessEmail &&
+    settings.logoUrl === DONPHONE_DEFAULTS_REFERENCE.logoUrl
+  );
+};
+
+
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -24,39 +47,60 @@ export default function SettingsPage() {
   const [businessPhone, setBusinessPhone] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined); // undefined: no change, null: remove, File: new file
+  const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined);
   const [originalLogoUrl, setOriginalLogoUrl] = useState<string | null>(null);
 
   const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError, refetch: refetchEstablishmentSettings, isFetching: isFetchingSettings } = useQuery<EstablishmentSettings | null, Error>({
     queryKey: ["establishmentSettings"],
     queryFn: getEstablishmentSettings,
-    refetchOnWindowFocus: false, // Avoid re-fetching on window focus unless necessary
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
-    if (establishmentSettings) {
-      setBusinessName(establishmentSettings.businessName || "DONPHONE INFORMÁTICA E CELULARES");
-      setBusinessAddress(establishmentSettings.businessAddress || "RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ");
-      setBusinessCnpj(establishmentSettings.businessCnpj || "58.435.813/0004-94");
-      setBusinessPhone(establishmentSettings.businessPhone || "49991287685");
-      setBusinessEmail(establishmentSettings.businessEmail || "contato@donphone.com");
-      if (establishmentSettings.logoUrl) {
-        setLogoPreview(establishmentSettings.logoUrl);
-        setOriginalLogoUrl(establishmentSettings.logoUrl);
+    if (establishmentSettings && !settingsError) {
+      if (isDataEffectivelyDefault(establishmentSettings)) {
+        // Data matches the service's hardcoded defaults (meaning no custom data saved yet for form purposes)
+        // Keep form fields blank.
+        setBusinessName("");
+        setBusinessAddress("");
+        setBusinessCnpj("");
+        setBusinessPhone("");
+        setBusinessEmail("");
+        setLogoPreview(null);
+        setOriginalLogoUrl(null); // No "original" if it's just the default placeholder from service
       } else {
-        setLogoPreview(null); // Explicitly null if no logoUrl
-        setOriginalLogoUrl(null);
+        // Populate with actual saved data (which might include empty strings if saved that way)
+        setBusinessName(establishmentSettings.businessName || "");
+        setBusinessAddress(establishmentSettings.businessAddress || "");
+        setBusinessCnpj(establishmentSettings.businessCnpj || "");
+        setBusinessPhone(establishmentSettings.businessPhone || "");
+        setBusinessEmail(establishmentSettings.businessEmail || "");
+        
+        if (establishmentSettings.logoUrl && establishmentSettings.logoUrl !== DONPHONE_DEFAULTS_REFERENCE.logoUrl) {
+          setLogoPreview(establishmentSettings.logoUrl);
+          setOriginalLogoUrl(establishmentSettings.logoUrl);
+        } else if (establishmentSettings.logoUrl === DONPHONE_DEFAULTS_REFERENCE.logoUrl) {
+          // If the saved URL is the default placeholder, don't show it as a preview in "edit" mode
+          setLogoPreview(null);
+          setOriginalLogoUrl(establishmentSettings.logoUrl); // Still note it as the original
+        }
+         else {
+          setLogoPreview(null);
+          setOriginalLogoUrl(null);
+        }
       }
     } else if (!isLoadingSettings && !settingsError) {
-      // If no settings found and not loading/error, set defaults for form display
-      setBusinessName("DONPHONE INFORMÁTICA E CELULARES");
-      setBusinessAddress("RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ");
-      setBusinessCnpj("58.435.813/0004-94");
-      setBusinessPhone("49991287685");
-      setBusinessEmail("contato@donphone.com");
-      setLogoPreview("https://placehold.co/180x60.png"); // Default placeholder
-      setOriginalLogoUrl("https://placehold.co/180x60.png");
+      // Fallback if establishmentSettings is unexpectedly null after loading (should be handled by service returning defaults)
+      // Ensure form is blank.
+      setBusinessName("");
+      setBusinessAddress("");
+      setBusinessCnpj("");
+      setBusinessPhone("");
+      setBusinessEmail("");
+      setLogoPreview(null);
+      setOriginalLogoUrl(null);
     }
+    // While loading, skeleton is shown and fields remain as their initial empty state from useState.
   }, [establishmentSettings, isLoadingSettings, settingsError]);
 
   useEffect(() => {
@@ -76,6 +120,9 @@ export default function SettingsPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["establishmentSettings"] });
       toast({ title: "Sucesso!", description: "Dados do estabelecimento atualizados." });
+      // Update form state with the newly saved data, this will also re-evaluate `isDataEffectivelyDefault` if needed
+      // queryClient.setQueryData(["establishmentSettings"], data) would be more direct if the mutation returned the full new state.
+      // For now, rely on refetch or the direct update below.
       if (data.logoUrl) {
         setLogoPreview(data.logoUrl);
         setOriginalLogoUrl(data.logoUrl);
@@ -83,7 +130,7 @@ export default function SettingsPage() {
         setLogoPreview(null);
         setOriginalLogoUrl(null);
       }
-      setLogoFile(undefined); // Reset logo file state, indicating no pending change
+      setLogoFile(undefined);
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao Salvar", description: `Falha ao salvar dados: ${error.message}`, variant: "destructive" });
@@ -93,7 +140,7 @@ export default function SettingsPage() {
   const handleLogoChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 800 * 1024) { // Max 800KB
+      if (file.size > 800 * 1024) {
         toast({ title: "Arquivo Muito Grande", description: "O logo deve ter no máximo 800KB.", variant: "destructive" });
         return;
       }
@@ -103,7 +150,7 @@ export default function SettingsPage() {
   };
 
   const handleRemoveLogo = () => {
-    setLogoFile(null); // Mark for removal
+    setLogoFile(null); 
     setLogoPreview(null);
   };
 
@@ -200,7 +247,7 @@ export default function SettingsPage() {
            <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center">
             <AlertTriangle className="h-12 w-12 text-destructive" />
             <p className="text-lg font-medium text-destructive">Erro ao carregar dados</p>
-            <p className="text-sm text-muted-foreground max-w-md">{settingsError.message}</p>
+            <p className="text-sm text-muted-foreground max-w-md">{settingsError.message || "Tente recarregar a página."}</p>
             <Button onClick={() => refetchEstablishmentSettings()} className="mt-3" disabled={isFetchingSettings}>
               <RotateCcw className="mr-2 h-4 w-4 data-[hide=false]:animate-spin" data-hide={!isFetchingSettings} />
               Tentar Novamente
@@ -237,7 +284,13 @@ export default function SettingsPage() {
                 <Label htmlFor="logoUpload">Logo do Estabelecimento</Label>
                 {logoPreview && (
                   <div className="mb-3 rounded-md border border-dashed p-3 inline-block relative bg-muted/20">
-                    <Image src={logoPreview} alt="Prévia do Logo" width={180} height={60} className="max-h-16 object-contain" data-ai-hint="company logo" onError={() => setLogoPreview("https://placehold.co/180x60.png?text=Logo+Inválido")} />
+                    <Image src={logoPreview} alt="Prévia do Logo" width={180} height={60} className="max-h-16 object-contain" data-ai-hint="company logo" onError={() => {
+                        // Fallback if the preview URL (e.g., from createObjectURL) is invalid or image fails to load
+                        // This might happen if originalLogoUrl was a placeholder that is no longer valid
+                        // or if the uploaded file is not a valid image.
+                        setLogoPreview(null); 
+                        toast({title: "Erro de Logo", description: "Não foi possível carregar a prévia do logo.", variant: "destructive"});
+                    }}/>
                   </div>
                 )}
                 <div className="flex flex-col sm:flex-row gap-3 items-start">
@@ -247,7 +300,7 @@ export default function SettingsPage() {
                       <Input id="logoUpload" type="file" accept="image/png, image/jpeg, image/webp, image/svg+xml" className="sr-only" onChange={handleLogoChange} />
                     </Label>
                   </Button>
-                  {logoPreview && (
+                  {(logoPreview || logoFile === null) && ( // Show remove if there's a preview OR if remove was clicked (logoFile is null)
                     <Button type="button" variant="ghost" onClick={handleRemoveLogo} className="text-destructive hover:text-destructive w-full sm:w-auto">
                       Remover Logo
                     </Button>
@@ -272,5 +325,6 @@ export default function SettingsPage() {
     </div>
   );
 }
+    
 
     
