@@ -47,7 +47,7 @@ export default function SettingsPage() {
   const [businessPhone, setBusinessPhone] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined); // undefined: no change, null: remove, File: new file
+  const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined);
   const [originalLogoUrl, setOriginalLogoUrl] = useState<string | null>(null);
 
   const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError, refetch: refetchEstablishmentSettings, isFetching: isFetchingSettings } = useQuery<EstablishmentSettings | null, Error>({
@@ -57,7 +57,10 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    if (establishmentSettings) { // Only proceed if settings are actually loaded
+    // Este useEffect preencherá o formulário se os dados forem carregados com sucesso
+    // e não forem os dados padrão. Se os dados padrão forem carregados ou houver erro,
+    // os campos permanecerão com seus valores iniciais (vazios).
+    if (establishmentSettings) { 
       if (isDataEffectivelyDefault(establishmentSettings)) {
         setBusinessName("");
         setBusinessAddress("");
@@ -82,7 +85,6 @@ export default function SettingsPage() {
         }
       }
     }
-    // If establishmentSettings is null (e.g. on initial load or error), form fields retain their useState initial empty values.
   }, [establishmentSettings]);
 
 
@@ -99,7 +101,7 @@ export default function SettingsPage() {
         setLogoPreview(null);
         setOriginalLogoUrl(null);
       }
-      setLogoFile(undefined); // Reset logo file state after save
+      setLogoFile(undefined); 
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao Salvar", description: `Falha ao salvar dados: ${error.message}`, variant: "destructive" });
@@ -109,7 +111,7 @@ export default function SettingsPage() {
   const handleLogoChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 800 * 1024) { // 800KB limit
+      if (file.size > 800 * 1024) { 
         toast({ title: "Arquivo Muito Grande", description: "O logo deve ter no máximo 800KB.", variant: "destructive" });
         return;
       }
@@ -119,7 +121,7 @@ export default function SettingsPage() {
   };
 
   const handleRemoveLogo = () => {
-    setLogoFile(null); // Explicitly set to null to indicate removal
+    setLogoFile(null); 
     setLogoPreview(null);
   };
 
@@ -135,6 +137,8 @@ export default function SettingsPage() {
     saveSettingsMutation.mutate({ settingsData: settingsToSave, logoToUpload: logoFile });
   };
   
+  // O formulário de Dados do Estabelecimento é renderizado diretamente.
+  // O estado de carregamento ou erro de 'establishmentSettings' não bloqueia a renderização do formulário.
   const EstablishmentFormFields = () => (
     <form onSubmit={handleSaveEstablishmentData}>
       <CardContent className="space-y-6">
@@ -248,35 +252,25 @@ export default function SettingsPage() {
           <CardDescription>Insira as informações da sua loja. Estes dados aparecerão em comprovantes e O.S.</CardDescription>
         </CardHeader>
         
+        {/* Mostra alerta de erro se houver, mas não bloqueia o formulário */}
         {settingsError && !isLoadingSettings && (
-           <CardContent>
+           <CardContent className="pb-0"> {/* Ajuste de padding para não ter espaço extra se erro estiver sozinho */}
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Erro ao Carregar Dados</AlertTitle>
+              <AlertTitle>Erro ao Carregar Dados Salvos</AlertTitle>
               <AlertDescription>
-                Não foi possível buscar os dados do estabelecimento salvos: {settingsError.message}. 
-                Você ainda pode preencher e salvar as informações.
+                Não foi possível buscar os dados do estabelecimento: {settingsError.message}. 
+                Você ainda pode preencher e salvar as informações abaixo.
                 <Button onClick={() => refetchEstablishmentSettings()} variant="link" className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80" disabled={isFetchingSettings}>
                   Tentar novamente
                 </Button>
               </AlertDescription>
             </Alert>
-            <EstablishmentFormFields />
           </CardContent>
         )}
-
-        {!settingsError && isLoadingSettings && (
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="ml-2 text-muted-foreground">Carregando dados do estabelecimento...</p>
-            </div>
-          </CardContent>
-        )}
-
-        {!settingsError && !isLoadingSettings && (
-          <EstablishmentFormFields />
-        )}
+        
+        {/* O formulário é sempre renderizado aqui */}
+        <EstablishmentFormFields />
       </Card>
     </div>
   );
