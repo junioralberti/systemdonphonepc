@@ -30,7 +30,7 @@ export default function SettingsPage() {
   const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError, refetch: refetchEstablishmentSettings, isFetching: isFetchingSettings } = useQuery<EstablishmentSettings | null, Error>({
     queryKey: ["establishmentSettings"],
     queryFn: getEstablishmentSettings,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false, // Avoid re-fetching on window focus unless necessary
   });
 
   useEffect(() => {
@@ -44,17 +44,17 @@ export default function SettingsPage() {
         setLogoPreview(establishmentSettings.logoUrl);
         setOriginalLogoUrl(establishmentSettings.logoUrl);
       } else {
-        setLogoPreview(null);
+        setLogoPreview(null); // Explicitly null if no logoUrl
         setOriginalLogoUrl(null);
       }
     } else if (!isLoadingSettings && !settingsError) {
-      // If no settings found and not loading/error, set defaults
+      // If no settings found and not loading/error, set defaults for form display
       setBusinessName("DONPHONE INFORMÁTICA E CELULARES");
       setBusinessAddress("RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ");
       setBusinessCnpj("58.435.813/0004-94");
       setBusinessPhone("49991287685");
       setBusinessEmail("contato@donphone.com");
-      setLogoPreview("https://placehold.co/180x60.png");
+      setLogoPreview("https://placehold.co/180x60.png"); // Default placeholder
       setOriginalLogoUrl("https://placehold.co/180x60.png");
     }
   }, [establishmentSettings, isLoadingSettings, settingsError]);
@@ -83,7 +83,7 @@ export default function SettingsPage() {
         setLogoPreview(null);
         setOriginalLogoUrl(null);
       }
-      setLogoFile(undefined); // Reset logo file state
+      setLogoFile(undefined); // Reset logo file state, indicating no pending change
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao Salvar", description: `Falha ao salvar dados: ${error.message}`, variant: "destructive" });
@@ -93,6 +93,10 @@ export default function SettingsPage() {
   const handleLogoChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      if (file.size > 800 * 1024) { // Max 800KB
+        toast({ title: "Arquivo Muito Grande", description: "O logo deve ter no máximo 800KB.", variant: "destructive" });
+        return;
+      }
       setLogoFile(file);
       setLogoPreview(URL.createObjectURL(file));
     }
@@ -197,8 +201,8 @@ export default function SettingsPage() {
             <AlertTriangle className="h-12 w-12 text-destructive" />
             <p className="text-lg font-medium text-destructive">Erro ao carregar dados</p>
             <p className="text-sm text-muted-foreground max-w-md">{settingsError.message}</p>
-            <Button onClick={() => refetchEstablishmentSettings()} className="mt-3">
-              <RotateCcw className="mr-2 h-4 w-4 animate-spin data-[hide=true]:hidden" data-hide={!isFetchingSettings} />
+            <Button onClick={() => refetchEstablishmentSettings()} className="mt-3" disabled={isFetchingSettings}>
+              <RotateCcw className="mr-2 h-4 w-4 data-[hide=false]:animate-spin" data-hide={!isFetchingSettings} />
               Tentar Novamente
             </Button>
           </CardContent>
@@ -232,8 +236,8 @@ export default function SettingsPage() {
               <div className="space-y-3">
                 <Label htmlFor="logoUpload">Logo do Estabelecimento</Label>
                 {logoPreview && (
-                  <div className="mb-3 rounded-md border border-dashed p-3 inline-block relative">
-                    <Image src={logoPreview} alt="Prévia do Logo" width={180} height={60} className="max-h-16 object-contain" data-ai-hint="company logo" />
+                  <div className="mb-3 rounded-md border border-dashed p-3 inline-block relative bg-muted/20">
+                    <Image src={logoPreview} alt="Prévia do Logo" width={180} height={60} className="max-h-16 object-contain" data-ai-hint="company logo" onError={() => setLogoPreview("https://placehold.co/180x60.png?text=Logo+Inválido")} />
                   </div>
                 )}
                 <div className="flex flex-col sm:flex-row gap-3 items-start">
@@ -254,7 +258,7 @@ export default function SettingsPage() {
             </CardContent>
             <CardFooter className="border-t pt-6">
               <Button type="submit" disabled={saveSettingsMutation.isPending || isFetchingSettings}>
-                {saveSettingsMutation.isPending ? (
+                {(saveSettingsMutation.isPending || isFetchingSettings) ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
@@ -268,3 +272,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
