@@ -2,7 +2,7 @@
 "use client";
 
 import type React from 'react';
-import { useState } from 'react'; // Added useState
+import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
@@ -22,17 +22,17 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // Added Dialog components
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { LogOut, ChevronDown, Calculator } from 'lucide-react'; // Added Calculator icon
+import { LogOut, ChevronDown, Calculator } from 'lucide-react';
 import Image from 'next/image';
-import { CalculatorComponent } from '@/components/calculator/calculator-component'; // Added CalculatorComponent
+import { CalculatorComponent } from '@/components/calculator/calculator-component';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, logout, userRole } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false); // State for calculator dialog
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false); 
 
   if (!isAuthenticated) {
     return null; 
