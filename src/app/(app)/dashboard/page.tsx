@@ -32,9 +32,10 @@ export default function DashboardPage() {
   const [pendingRepairs, setPendingRepairs] = useState<string>("N/D");
   const [isLoadingDashboardStats, setIsLoadingDashboardStats] = useState(true);
 
-  const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError, refetch: refetchEstablishmentSettings } = useQuery<EstablishmentSettings | null, Error>({
+  const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError, refetch: refetchEstablishmentSettings, isFetching: isFetchingSettings } = useQuery<EstablishmentSettings | null, Error>({
     queryKey: ["establishmentSettings"],
     queryFn: getEstablishmentSettings,
+     refetchOnWindowFocus: false, // Consider disabling if it causes too many refetches
   });
 
   useEffect(() => {
@@ -45,31 +46,30 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
-    if (!isLoadingSettings) { // Process only when loading is complete
+    if (!isLoadingSettings && !isFetchingSettings) {
       if (establishmentSettings) {
-        // Populate from Firestore
-        if (establishmentSettings.businessName !== undefined) setBusinessName(establishmentSettings.businessName);
-        if (establishmentSettings.businessAddress !== undefined) setBusinessAddress(establishmentSettings.businessAddress);
-        if (establishmentSettings.businessCnpj !== undefined) setBusinessCnpj(establishmentSettings.businessCnpj);
-        if (establishmentSettings.businessPhone !== undefined) setBusinessPhone(establishmentSettings.businessPhone);
-        if (establishmentSettings.businessEmail !== undefined) setBusinessEmail(establishmentSettings.businessEmail);
-        setLogoPreview(establishmentSettings.logoUrl || null); // Use fetched logo or null
+        setBusinessName(establishmentSettings.businessName || "DONPHONE INFORMÁTICA E CELULARES");
+        setBusinessAddress(establishmentSettings.businessAddress || "RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ");
+        setBusinessCnpj(establishmentSettings.businessCnpj || "58.435.813/0004-94");
+        setBusinessPhone(establishmentSettings.businessPhone || "49991287685");
+        setBusinessEmail(establishmentSettings.businessEmail || "contato@donphone.com");
+        setLogoPreview(establishmentSettings.logoUrl || null);
       } else if (!settingsError) {
-        // No data in Firestore and no error, use/reset to defaults
-        setBusinessName("DONPHONE INFORMÁTICA E CELULARES");
-        setBusinessAddress("RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ");
-        setBusinessCnpj("58.435.813/0004-94");
-        setBusinessPhone("49991287685");
-        setBusinessEmail("contato@donphone.com");
-        setLogoPreview(null); // No saved logo, so preview is null
+        // No data in Firestore and no error, apply/reset to defaults if form fields were empty
+        setBusinessName(prev => prev || "DONPHONE INFORMÁTICA E CELULARES");
+        setBusinessAddress(prev => prev || "RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ");
+        setBusinessCnpj(prev => prev || "58.435.813/0004-94");
+        setBusinessPhone(prev => prev || "49991287685");
+        setBusinessEmail(prev => prev || "contato@donphone.com");
+        setLogoPreview(null);
       }
-      // Always reset file input display when data loads/changes and not loading
-      setBusinessLogoFile(null);
+      setBusinessLogoFile(null); // Reset file input display
     }
-  }, [establishmentSettings, isLoadingSettings, settingsError]);
+  }, [establishmentSettings, isLoadingSettings, settingsError, isFetchingSettings]);
+
 
   useEffect(() => {
-    if (settingsError && !isLoadingSettings) {
+    if (settingsError && !isLoadingSettings && !isFetchingSettings) {
       toast({
         title: "Erro ao Carregar Dados do Estabelecimento",
         description: settingsError.message || "Não foi possível carregar os dados. Verifique sua conexão e as regras do Firestore.",
@@ -77,7 +77,7 @@ export default function DashboardPage() {
         duration: 7000,
       });
     }
-  }, [settingsError, toast, isLoadingSettings]);
+  }, [settingsError, toast, isLoadingSettings, isFetchingSettings]);
 
   const saveSettingsMutation = useMutation({
     mutationFn: ({ data, logoFile }: { data: Omit<EstablishmentSettings, 'updatedAt' | 'logoUrl'>, logoFile?: File | null }) => saveEstablishmentSettings(data, logoFile),
@@ -115,16 +115,17 @@ export default function DashboardPage() {
       reader.readAsDataURL(file);
     } else {
       setBusinessLogoFile(null);
-      if (!establishmentSettings?.logoUrl && !logoPreview?.startsWith('data:')) {
-          setLogoPreview(null);
-      } else if (establishmentSettings?.logoUrl && !businessLogoFile) {
+      // Revert to saved logo URL if a file was selected then deselected
+      if (establishmentSettings?.logoUrl) {
           setLogoPreview(establishmentSettings.logoUrl);
+      } else {
+          setLogoPreview(null);
       }
     }
   };
 
   const handleRemoveLogo = () => {
-    setBusinessLogoFile(null);
+    setBusinessLogoFile(null); // Signal to remove for backend as well
     setLogoPreview(null);
   };
 
@@ -138,12 +139,17 @@ export default function DashboardPage() {
       businessEmail,
     };
 
-    let logoActionFile: File | null | undefined = businessLogoFile;
-    if (logoPreview === null && businessLogoFile === null && establishmentSettings?.logoUrl) {
-        logoActionFile = null; // Signal for removal
+    let logoAction: File | null | undefined = businessLogoFile; // undefined means no change to logo, null means remove current logo, File means upload new.
+
+    // If there's no new file selected (businessLogoFile is null),
+    // AND the current preview is null (meaning user clicked "Remove Logo"),
+    // AND there was a logo previously saved (establishmentSettings.logoUrl exists),
+    // then we set logoAction to null to signal removal.
+    if (businessLogoFile === null && logoPreview === null && establishmentSettings?.logoUrl) {
+        logoAction = null; // Explicitly tell service to remove existing logo
     }
 
-    saveSettingsMutation.mutate({ data: settingsToSave, logoFile: logoActionFile });
+    saveSettingsMutation.mutate({ data: settingsToSave, logoFile: logoAction });
   };
 
   const renderStatValue = (value: string, isLoading: boolean) => {
@@ -166,9 +172,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {renderStatValue(totalRevenue, isLoadingDashboardStats)}
-            <p className="text-xs text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               {isLoadingDashboardStats ? <Skeleton className="h-3 w-32" /> : "Cálculo pendente."}
-            </p>
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -180,9 +186,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {renderStatValue(activeClients, isLoadingDashboardStats)}
-             <p className="text-xs text-muted-foreground">
+             <div className="text-xs text-muted-foreground">
               {isLoadingDashboardStats ? <Skeleton className="h-3 w-28" /> : "Cálculo pendente."}
-            </p>
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -192,9 +198,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
              {renderStatValue(openServiceOrders, isLoadingDashboardStats)}
-             <p className="text-xs text-muted-foreground">
+             <div className="text-xs text-muted-foreground">
               {isLoadingDashboardStats ? <Skeleton className="h-3 w-24" /> : "Cálculo pendente."}
-            </p>
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -204,9 +210,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {renderStatValue(pendingRepairs, isLoadingDashboardStats)}
-            <p className="text-xs text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
              {isLoadingDashboardStats ? <Skeleton className="h-3 w-36" /> : "Cálculo pendente."}
-            </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -221,7 +227,7 @@ export default function DashboardPage() {
         </CardHeader>
         <form onSubmit={handleSaveEstablishmentData}>
           <CardContent className="space-y-4">
-            {isLoadingSettings && (
+            {(isLoadingSettings || isFetchingSettings) && !settingsError && (
                 <div className="space-y-4 pt-2">
                     <div className="flex items-center justify-center gap-2 text-muted-foreground">
                         <Loader2 className="h-5 w-5 animate-spin" />
@@ -236,7 +242,7 @@ export default function DashboardPage() {
                     <Skeleton className="h-10 w-32 mt-3" />
                 </div>
             )}
-            {settingsError && !isLoadingSettings && (
+            {settingsError && !(isLoadingSettings || isFetchingSettings) && (
                  <div className="flex flex-col items-center justify-center gap-3 py-6 text-center text-destructive">
                     <AlertTriangle className="h-10 w-10" />
                     <p className="text-md font-medium">Erro ao carregar dados do estabelecimento</p>
@@ -246,14 +252,14 @@ export default function DashboardPage() {
                         variant="outline"
                         onClick={() => refetchEstablishmentSettings()}
                         className="mt-3"
-                        disabled={isLoadingSettings}
+                        disabled={isLoadingSettings || isFetchingSettings}
                     >
-                        <RotateCcw className="mr-2 h-4 w-4" />
+                        <RotateCcw className="mr-2 h-4 w-4 data-[spin=true]:animate-spin" data-spin={isLoadingSettings || isFetchingSettings} />
                         Tentar Novamente
                     </Button>
                  </div>
             )}
-            {!isLoadingSettings && !settingsError && (
+            {!(isLoadingSettings || isFetchingSettings) && !settingsError && (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -310,7 +316,7 @@ export default function DashboardPage() {
                      <p className="text-xs text-muted-foreground mt-1">Logo atual salvo. Para alterar, selecione um novo arquivo.</p>
                    )}
                 </div>
-                <Button type="submit" disabled={saveSettingsMutation.isPending || isLoadingSettings} className="w-full sm:w-auto">
+                <Button type="submit" disabled={saveSettingsMutation.isPending || isLoadingSettings || isFetchingSettings} className="w-full sm:w-auto">
                   {saveSettingsMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
