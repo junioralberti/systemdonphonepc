@@ -22,9 +22,9 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { LogOut, ChevronDown, Calculator } from 'lucide-react';
+import { LogOut, ChevronDown, Calculator, Mail } from 'lucide-react';
 import Image from 'next/image';
 import { CalculatorComponent } from '@/components/calculator/calculator-component';
 
@@ -32,7 +32,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, logout, userRole } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false); 
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
 
   if (!isAuthenticated) {
     return null; 
@@ -122,7 +123,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/settings')}>Configurações</DropdownMenuItem>
-                <DropdownMenuItem>Suporte</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsSupportDialogOpen(true)}>Suporte</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>Sair</DropdownMenuItem>
               </DropdownMenuContent>
@@ -138,6 +139,47 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <DialogContent className="p-0 max-w-xs border-none bg-transparent shadow-none">
           {/* DialogHeader and DialogTitle are removed to make it more like a floating widget */}
           <CalculatorComponent />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSupportDialogOpen} onOpenChange={setIsSupportDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Suporte Técnico</DialogTitle>
+            <DialogDescription>
+              Precisa de ajuda ou tem alguma dúvida? Entre em contato com o desenvolvedor.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm">
+              <strong>Desenvolvedor:</strong> Junior Alberti
+            </p>
+            <div className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-primary" />
+              <a href="mailto:junioralberti@gmail.com" className="text-sm text-primary hover:underline">
+                junioralberti@gmail.com
+              </a>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Simple SVG for WhatsApp icon */}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path><path d="M19.07 4.93A10 10 0 1 1 4.93 19.07"></path></svg>
+              <a
+                href="https://wa.me/5549991287685"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-green-600 hover:underline"
+              >
+                (49) 99128-7685 (WhatsApp)
+              </a>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Fechar
+              </Button>
+            </DialogClose>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
