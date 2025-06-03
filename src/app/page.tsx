@@ -34,7 +34,7 @@ export default function LoginPage() {
         <CardHeader className="items-center text-center">
           <div className="mb-4 rounded-md bg-primary p-2 text-primary-foreground inline-block">
             <Image 
-              src="/donphone-logo.png" 
+              src="https://placehold.co/48x48.png" 
               alt="DonPhone Logo" 
               width={48} 
               height={48} 

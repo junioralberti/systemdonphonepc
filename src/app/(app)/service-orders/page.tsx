@@ -19,6 +19,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Skeleton } from "@/components/ui/skeleton";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 
 type ServiceOrderStatus = "Aberta" | "Em andamento" | "Aguardando peça" | "Concluída" | "Entregue" | "Cancelada";
@@ -242,7 +243,7 @@ export default function ServiceOrdersPage() {
       businessCnpj: "58.435.813/0004-94",
       businessPhone: "49991287685",
       businessEmail: "contato@donphone.com",
-      logoUrl: "/donphone-logo.png"
+      logoUrl: "https://placehold.co/180x60.png"
     };
 
     const printWindow = window.open('', '_blank', 'height=700,width=800');
@@ -277,7 +278,8 @@ export default function ServiceOrdersPage() {
 
       printWindow.document.write('<div class="establishment-header">');
       if (establishmentData.logoUrl) {
-        printWindow.document.write(`<div class="logo-container"><img src="${establishmentData.logoUrl}" alt="Logo do Estabelecimento" /></div>`);
+        const logoHint = establishmentData.logoUrl.startsWith('https://placehold.co') ? 'data-ai-hint="company logo placeholder"' : 'data-ai-hint="company logo"';
+        printWindow.document.write(`<div class="logo-container"><img src="${establishmentData.logoUrl}" alt="Logo do Estabelecimento" ${logoHint} /></div>`);
       }
       printWindow.document.write('<div class="establishment-info">');
       printWindow.document.write(`<strong>${establishmentData.businessName || "Nome não configurado"}</strong><br/>`);
@@ -693,7 +695,7 @@ export default function ServiceOrdersPage() {
               <DialogFooter className="border-t pt-6 mt-6 pr-4 flex flex-col sm:flex-row justify-between items-center w-full">
                 <Button type="button" variant="outline" onClick={() => handlePrintOS({
                     osNumber: "PREVISUALIZAÇÃO" , 
-                    openingDate: new Date().toLocaleString('pt-BR'),
+                    openingDate: new Date(), // Use Date object for formatting
                     clientName, deviceBrandModel, problemReportedByClient, status, 
                     deliveryForecastDate, responsibleTechnicianName,
                     clientCpfCnpj, clientPhone, clientEmail,
@@ -816,5 +818,3 @@ export default function ServiceOrdersPage() {
     </div>
   );
 }
-
-    

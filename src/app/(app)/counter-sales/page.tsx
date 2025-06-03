@@ -135,7 +135,7 @@ export default function CounterSalesPage() {
       businessCnpj: "58.435.813/0004-94",
       businessPhone: "49991287685",
       businessEmail: "contato@donphone.com",
-      logoUrl: "/donphone-logo.png"
+      logoUrl: "https://placehold.co/180x60.png"
     };
 
     const printWindow = window.open('', '_blank', 'height=700,width=800');
@@ -167,7 +167,8 @@ export default function CounterSalesPage() {
 
       printWindow.document.write('<div class="establishment-header">');
       if (establishmentData.logoUrl) {
-        printWindow.document.write(`<div class="logo-container"><img src="${establishmentData.logoUrl}" alt="Logo" /></div>`);
+        const logoHint = establishmentData.logoUrl.startsWith('https://placehold.co') ? 'data-ai-hint="company logo placeholder"' : 'data-ai-hint="company logo"';
+        printWindow.document.write(`<div class="logo-container"><img src="${establishmentData.logoUrl}" alt="Logo" ${logoHint} /></div>`);
       }
       printWindow.document.write('<div class="establishment-info">');
       printWindow.document.write(`<strong>${establishmentData.businessName || "Nome não configurado"}</strong><br/>`);
@@ -388,5 +389,3 @@ export default function CounterSalesPage() {
     </div>
   );
 }
-
-    

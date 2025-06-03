@@ -5,7 +5,7 @@ import { db, storage } from '@/lib/firebase';
 
 const SETTINGS_COLLECTION = 'systemSettings';
 const ESTABLISHMENT_DOC_ID = 'establishmentDetails';
-const LOGO_STORAGE_PATH = 'establishment_logo/donphone_logo'; // Fixed path for a single logo
+const LOGO_STORAGE_PATH = 'establishment_logo/app_logo'; // Generic path
 
 export interface EstablishmentSettings {
   businessName?: string;
@@ -38,7 +38,18 @@ const settingsFromDoc = (docSnap: DocumentData | undefined): EstablishmentSettin
 export const getEstablishmentSettings = async (): Promise<EstablishmentSettings | null> => {
   const docRef = doc(db, SETTINGS_COLLECTION, ESTABLISHMENT_DOC_ID);
   const docSnap = await getDoc(docRef);
-  return settingsFromDoc(docSnap);
+  if (docSnap.exists()) {
+    return settingsFromDoc(docSnap);
+  }
+  // Return default DonPhone details if no settings are found in Firestore
+  return {
+    businessName: "DONPHONE INFORMÁTICA E CELULARES",
+    businessAddress: "RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ",
+    businessCnpj: "58.435.813/0004-94",
+    businessPhone: "49991287685",
+    businessEmail: "contato@donphone.com",
+    logoUrl: "https://placehold.co/180x60.png", // Default placeholder logo
+  };
 };
 
 export const saveEstablishmentSettings = async (
@@ -48,22 +59,36 @@ export const saveEstablishmentSettings = async (
   const docRef = doc(db, SETTINGS_COLLECTION, ESTABLISHMENT_DOC_ID);
   let newLogoUrl: string | undefined = undefined;
 
-  const currentSettings = await getEstablishmentSettings();
+  const currentSettings = await getDoc(docRef).then(snap => settingsFromDoc(snap));
+
 
   if (logoFile) {
-    // If there's an old logo and it's different from the new one (or if new one is uploaded), delete old one.
-    // For simplicity, we always try to upload if a file is provided.
-    // More robust logic could check if the old logoUrl exists and delete it.
     const logoStorageRef = ref(storage, LOGO_STORAGE_PATH);
+    // If a logo already exists at LOGO_STORAGE_PATH, delete it before uploading new one.
+    // This handles replacement correctly.
+    try {
+        await getDownloadURL(logoStorageRef); // Check if file exists
+        await deleteObject(logoStorageRef); // Delete if it exists
+    } catch (error: any) {
+        if (error.code !== 'storage/object-not-found') {
+            console.warn("Could not delete old logo, it might not exist or another error occurred:", error);
+        }
+        // If object not found, it's fine, just proceed to upload.
+    }
     await uploadBytes(logoStorageRef, logoFile);
     newLogoUrl = await getDownloadURL(logoStorageRef);
+
   } else if (logoFile === null && currentSettings?.logoUrl) {
-    // Explicitly removing logo
+    // Explicitly removing logo if logoFile is null and a logoUrl exists
     try {
-        const oldLogoRef = ref(storage, currentSettings.logoUrl); // Assumes logoUrl is the full path or reconstructable
-        await deleteObject(oldLogoRef);
-    } catch (error) {
-        console.warn("Could not delete old logo, it might not exist or path is incorrect:", error);
+        // Try to delete from the specific path if currentSettings.logoUrl is the generic one,
+        // or from the full URL if it's different (though LOGO_STORAGE_PATH is now fixed).
+        const logoToDeleteRef = ref(storage, LOGO_STORAGE_PATH); 
+        await deleteObject(logoToDeleteRef);
+    } catch (error: any) {
+        if (error.code !== 'storage/object-not-found') {
+             console.warn("Could not delete logo during removal, it might not exist or path is incorrect:", error);
+        }
     }
     newLogoUrl = ""; // Set to empty string to remove from DB
   }
@@ -71,20 +96,19 @@ export const saveEstablishmentSettings = async (
 
   const dataToSave: EstablishmentSettings = {
     ...settingsData,
-    logoUrl: newLogoUrl !== undefined ? newLogoUrl : currentSettings?.logoUrl, // Keep old if no new/removal
     updatedAt: serverTimestamp() as Timestamp,
   };
   
-  // If newLogoUrl is undefined (meaning no new file and no explicit removal),
-  // and currentSettings has a logoUrl, keep it.
-  // If newLogoUrl is an empty string (explicit removal), it will be saved.
-  // If newLogoUrl has a value (new upload), it will be saved.
-  if (newLogoUrl === undefined && currentSettings?.logoUrl) {
+  if (newLogoUrl !== undefined) {
+    dataToSave.logoUrl = newLogoUrl;
+  } else if (currentSettings?.logoUrl) {
     dataToSave.logoUrl = currentSettings.logoUrl;
+  } else {
+    dataToSave.logoUrl = ""; // Default to empty if no current and no new
   }
 
 
-  await setDoc(docRef, dataToSave, { merge: true }); // Use setDoc with merge to create if not exists, or update
+  await setDoc(docRef, dataToSave, { merge: true }); 
   
   return {
       ...settingsData,
