@@ -17,12 +17,11 @@ export interface EstablishmentSettings {
   updatedAt?: Timestamp;
 }
 
-// Helper to convert Firestore doc to EstablishmentSettings
-const settingsFromDoc = (docSnap: DocumentData | undefined): EstablishmentSettings | null => {
-  if (!docSnap || !docSnap.exists()) {
+// Helper to convert Firestore doc data to EstablishmentSettings
+const settingsFromDocData = (data: DocumentData | undefined): EstablishmentSettings | null => {
+  if (!data) {
     return null;
   }
-  const data = docSnap.data() as EstablishmentSettings;
   return {
     businessName: data.businessName || "",
     businessAddress: data.businessAddress || "",
@@ -37,9 +36,9 @@ const settingsFromDoc = (docSnap: DocumentData | undefined): EstablishmentSettin
 
 export const getEstablishmentSettings = async (): Promise<EstablishmentSettings | null> => {
   const docRef = doc(db, SETTINGS_COLLECTION, ESTABLISHMENT_DOC_ID);
-  const docSnap = await getDoc(docRef);
-  if (docSnap.exists()) {
-    return settingsFromDoc(docSnap);
+  const docSnap = await getDoc(docRef); // docSnap is DocumentSnapshot
+  if (docSnap.exists()) { // Correct check on DocumentSnapshot
+    return settingsFromDocData(docSnap.data()); // Pass the data() to settingsFromDocData
   }
   // Return default DonPhone details if no settings are found in Firestore
   return {
@@ -59,30 +58,25 @@ export const saveEstablishmentSettings = async (
   const docRef = doc(db, SETTINGS_COLLECTION, ESTABLISHMENT_DOC_ID);
   let newLogoUrl: string | undefined = undefined;
 
-  const currentSettings = await getDoc(docRef).then(snap => settingsFromDoc(snap));
+  const currentSettingsSnap = await getDoc(docRef);
+  const currentSettings = settingsFromDocData(currentSettingsSnap.data());
 
 
   if (logoFile) {
     const logoStorageRef = ref(storage, LOGO_STORAGE_PATH);
-    // If a logo already exists at LOGO_STORAGE_PATH, delete it before uploading new one.
-    // This handles replacement correctly.
     try {
-        await getDownloadURL(logoStorageRef); // Check if file exists
-        await deleteObject(logoStorageRef); // Delete if it exists
+        await getDownloadURL(logoStorageRef); 
+        await deleteObject(logoStorageRef); 
     } catch (error: any) {
         if (error.code !== 'storage/object-not-found') {
             console.warn("Could not delete old logo, it might not exist or another error occurred:", error);
         }
-        // If object not found, it's fine, just proceed to upload.
     }
     await uploadBytes(logoStorageRef, logoFile);
     newLogoUrl = await getDownloadURL(logoStorageRef);
 
   } else if (logoFile === null && currentSettings?.logoUrl) {
-    // Explicitly removing logo if logoFile is null and a logoUrl exists
     try {
-        // Try to delete from the specific path if currentSettings.logoUrl is the generic one,
-        // or from the full URL if it's different (though LOGO_STORAGE_PATH is now fixed).
         const logoToDeleteRef = ref(storage, LOGO_STORAGE_PATH); 
         await deleteObject(logoToDeleteRef);
     } catch (error: any) {
@@ -90,7 +84,7 @@ export const saveEstablishmentSettings = async (
              console.warn("Could not delete logo during removal, it might not exist or path is incorrect:", error);
         }
     }
-    newLogoUrl = ""; // Set to empty string to remove from DB
+    newLogoUrl = ""; 
   }
 
 
@@ -104,7 +98,7 @@ export const saveEstablishmentSettings = async (
   } else if (currentSettings?.logoUrl) {
     dataToSave.logoUrl = currentSettings.logoUrl;
   } else {
-    dataToSave.logoUrl = ""; // Default to empty if no current and no new
+    dataToSave.logoUrl = ""; 
   }
 
 
@@ -115,3 +109,4 @@ export const saveEstablishmentSettings = async (
       logoUrl: dataToSave.logoUrl
   };
 };
+
