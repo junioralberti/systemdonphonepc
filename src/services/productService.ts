@@ -9,6 +9,8 @@ import {
   serverTimestamp,
   query,
   orderBy,
+  where,
+  limit,
   Timestamp,
   type DocumentData,
   type QueryDocumentSnapshot,
@@ -57,4 +59,20 @@ export const updateProduct = async (id: string, productData: Partial<Omit<Produc
 export const deleteProduct = async (id: string): Promise<void> => {
   const productRef = doc(db, PRODUCTS_COLLECTION, id);
   await deleteDoc(productRef);
+};
+
+export const getProductBySku = async (sku: string): Promise<Product | null> => {
+  if (!sku || sku.trim() === "") {
+    return null;
+  }
+  const q = query(
+    collection(db, PRODUCTS_COLLECTION), 
+    where("sku", "==", sku.trim().toUpperCase()), // Assuming SKU is stored in uppercase or ensuring case-insensitive comparison if possible
+    limit(1)
+  );
+  const querySnapshot = await getDocs(q);
+  if (!querySnapshot.empty) {
+    return productFromDoc(querySnapshot.docs[0]);
+  }
+  return null;
 };

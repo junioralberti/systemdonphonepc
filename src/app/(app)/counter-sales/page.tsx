@@ -11,11 +11,13 @@ import { Label } from "@/components/ui/label";
 import { ScanLine, PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
-import { addSale, type SaleInput, type CartItemInput } from "@/services/salesService"; // Import Sale types
+import { addSale, type SaleInput, type CartItemInput } from "@/services/salesService"; 
+import { getProductBySku } from "@/services/productService"; // Import getProductBySku
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface CartItem extends CartItemInput {
-  id: string; // SKU or product ID (client-side temporary ID for mock products)
+  id: string; 
+  sku: string; // Add SKU to cart item for potential re-checks or identification
 }
 
 type PaymentMethod = "Dinheiro" | "Cartão de Crédito" | "Cartão de Débito" | "PIX";
@@ -29,6 +31,7 @@ export default function CounterSalesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [establishmentDataForPrint, setEstablishmentDataForPrint] = useState<EstablishmentSettings | null>(null);
+  const [isLookingUpSku, setIsLookingUpSku] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -37,7 +40,6 @@ export default function CounterSalesPage() {
             setEstablishmentDataForPrint(settings);
         } catch (error) {
             console.error("Failed to fetch establishment settings for print:", error);
-             // Fallback is handled directly in the print function
         }
     };
     fetchSettings();
@@ -46,18 +48,17 @@ export default function CounterSalesPage() {
   const addSaleMutation = useMutation({
     mutationFn: addSale,
     onSuccess: (saleId) => {
-      queryClient.invalidateQueries({ queryKey: ["sales"] }); // Assuming you might list sales later
+      queryClient.invalidateQueries({ queryKey: ["sales"] }); 
       toast({ 
         title: "Venda Concluída!", 
         description: `Venda ${saleId} registrada com sucesso. Cliente: ${clientNameForSale || "Não informado"}. Pagamento: ${paymentMethod}. Total: R$ ${calculateTotal().toFixed(2)}`
       });
       
-      // Prepare data for printing AFTER successful save
       const saleDataForPrint: SaleInput & { saleId: string; date: string } = {
-        saleId, // Use the ID returned from Firestore or generated before save
+        saleId, 
         date: new Date().toLocaleString('pt-BR'),
         clientName: clientNameForSale || null,
-        items: cartItems.map(({id, ...item}) => item), // Remove temporary client-side ID
+        items: cartItems.map(({id, sku, ...item}) => item), // Remove client-side temp ID and sku for saving
         paymentMethod: paymentMethod || null,
         totalAmount: calculateTotal(),
       };
@@ -70,31 +71,45 @@ export default function CounterSalesPage() {
   });
 
 
-  const handleAddItem = () => {
+  const handleAddItem = async () => {
     if (!skuInput.trim()) {
       toast({ title: "Entrada Inválida", description: "Por favor, insira ou escaneie um SKU.", variant: "destructive" });
       return;
     }
+    setIsLookingUpSku(true);
+    const productSku = skuInput.trim().toUpperCase();
+    try {
+      const product = await getProductBySku(productSku);
 
-    // TODO: Implement actual product lookup from Firestore based on SKU
-    // For now, using mock product data
-    const mockProduct = {
-      id: skuInput.trim().toUpperCase() + `-${Date.now()}`, // Unique temp ID for client-side
-      name: `Produto ${skuInput.trim().toUpperCase()}`, 
-      price: Math.floor(Math.random() * 100) + 10, 
-    };
+      if (product && product.id) {
+        const existingItemIndex = cartItems.findIndex(item => item.sku === product.sku);
 
-    const existingItemIndex = cartItems.findIndex(item => item.name === mockProduct.name); // Match by name for mock
-
-    if (existingItemIndex > -1) {
-      const updatedCartItems = [...cartItems];
-      updatedCartItems[existingItemIndex].quantity += 1;
-      setCartItems(updatedCartItems);
-    } else {
-      setCartItems([...cartItems, { ...mockProduct, quantity: 1 }]);
+        if (existingItemIndex > -1) {
+          const updatedCartItems = [...cartItems];
+          // Check stock before incrementing? For now, just increment.
+          updatedCartItems[existingItemIndex].quantity += 1;
+          setCartItems(updatedCartItems);
+        } else {
+          // Check stock before adding? For now, just add.
+          setCartItems([...cartItems, { 
+            id: product.id + `-${Date.now()}`, // Client-side unique ID for the cart item instance
+            sku: product.sku,
+            name: product.name, 
+            price: product.price, 
+            quantity: 1 
+          }]);
+        }
+        setSkuInput("");
+        toast({ title: "Item Adicionado", description: `${product.name} adicionado ao carrinho.` });
+      } else {
+        toast({ title: "Produto Não Encontrado", description: `Nenhum produto encontrado com o SKU: ${productSku}`, variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Error fetching product by SKU:", error);
+      toast({ title: "Erro ao Buscar Produto", description: "Ocorreu um erro ao buscar o produto.", variant: "destructive" });
+    } finally {
+      setIsLookingUpSku(false);
     }
-    setSkuInput("");
-    toast({ title: "Item Adicionado", description: `${mockProduct.name} adicionado ao carrinho.` });
   };
 
   const handleUpdateQuantity = (itemId: string, change: number) => {
@@ -125,7 +140,7 @@ export default function CounterSalesPage() {
     saleId: string;
     date: string;
     clientName?: string | null;
-    items: CartItemInput[]; // Use CartItemInput for items sent to print
+    items: CartItemInput[]; 
     paymentMethod?: PaymentMethod | null;
     totalAmount: number;
   }) => {
@@ -142,7 +157,7 @@ export default function CounterSalesPage() {
     if (printWindow) {
       printWindow.document.write('<html><head><title>Comprovante de Venda</title>');
       printWindow.document.write('<style>');
-      printWindow.document.write(`
+      printWindow.document.write(\`
         body { font-family: 'Arial', sans-serif; margin: 20px; font-size: 10pt; color: #333; }
         .print-container { width: 100%; max-width: 700px; margin: auto; }
         .establishment-header { display: flex; align-items: flex-start; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
@@ -162,50 +177,50 @@ export default function CounterSalesPage() {
         .summary-section div { display: flex; justify-content: space-between; margin-bottom: 5px; }
         .summary-section .grand-total { font-size: 11pt; font-weight: bold; }
         h1.receipt-title { text-align: center; font-size: 16pt; margin-bottom: 15px; color: #000;}
-      `);
+      \`);
       printWindow.document.write('</style></head><body><div class="print-container">');
 
       printWindow.document.write('<div class="establishment-header">');
       if (establishmentData.logoUrl) {
         const logoHint = establishmentData.logoUrl.startsWith('https://placehold.co') ? 'data-ai-hint="company logo placeholder"' : 'data-ai-hint="company logo"';
-        printWindow.document.write(`<div class="logo-container"><img src="${establishmentData.logoUrl}" alt="Logo" ${logoHint} /></div>`);
+        printWindow.document.write(\`<div class="logo-container"><img src="\${establishmentData.logoUrl}" alt="Logo" \${logoHint} /></div>\`);
       }
       printWindow.document.write('<div class="establishment-info">');
-      printWindow.document.write(`<strong>${establishmentData.businessName || "Nome não configurado"}</strong><br/>`);
-      printWindow.document.write(`${establishmentData.businessAddress || "Endereço não configurado"}<br/>`);
-      if(establishmentData.businessCnpj) printWindow.document.write(`CNPJ: ${establishmentData.businessCnpj}<br/>`);
+      printWindow.document.write(\`<strong>\${establishmentData.businessName || "Nome não configurado"}</strong><br/>\`);
+      printWindow.document.write(\`\${establishmentData.businessAddress || "Endereço não configurado"}<br/>\`);
+      if(establishmentData.businessCnpj) printWindow.document.write(\`CNPJ: \${establishmentData.businessCnpj}<br/>\`);
       if(establishmentData.businessPhone || establishmentData.businessEmail) {
-        printWindow.document.write(`Telefone: ${establishmentData.businessPhone || ""} ${establishmentData.businessPhone && establishmentData.businessEmail ? '|' : ''} E-mail: ${establishmentData.businessEmail || ""}`);
+        printWindow.document.write(\`Telefone: \${establishmentData.businessPhone || ""} \${establishmentData.businessPhone && establishmentData.businessEmail ? '|' : ''} E-mail: \${establishmentData.businessEmail || ""}\`);
       }
       printWindow.document.write('</div></div>');
 
 
-      printWindow.document.write(`<h1 class="receipt-title">COMPROVANTE DE VENDA</h1>`);
+      printWindow.document.write(\`<h1 class="receipt-title">COMPROVANTE DE VENDA</h1>\`);
       printWindow.document.write('<div class="details-grid">');
-      printWindow.document.write(`<div><strong>Nº Venda:</strong> ${saleData.saleId}</div>`);
-      printWindow.document.write(`<div><strong>Data:</strong> ${saleData.date}</div>`);
+      printWindow.document.write(\`<div><strong>Nº Venda:</strong> \${saleData.saleId}</div>\`);
+      printWindow.document.write(\`<div><strong>Data:</strong> \${saleData.date}</div>\`);
       if (saleData.clientName) {
-        printWindow.document.write(`<div><strong>Cliente:</strong> ${saleData.clientName}</div>`);
+        printWindow.document.write(\`<div><strong>Cliente:</strong> \${saleData.clientName}</div>\`);
       }
       printWindow.document.write('</div>');
 
       printWindow.document.write('<div class="section-title">Itens</div>');
       printWindow.document.write('<table class="items-table"><thead><tr><th>Produto</th><th class="text-center">Qtd</th><th class="text-right">Preço Unit.</th><th class="text-right">Subtotal</th></tr></thead><tbody>');
       saleData.items.forEach(item => {
-        printWindow.document.write(`<tr>
-          <td>${item.name}</td>
-          <td class="text-center">${item.quantity}</td>
-          <td class="text-right">R$ ${Number(item.price).toFixed(2).replace('.', ',')}</td>
-          <td class="text-right">R$ ${(Number(item.price) * item.quantity).toFixed(2).replace('.', ',')}</td>
-        </tr>`);
+        printWindow.document.write(\`<tr>
+          <td>\${item.name}</td>
+          <td class="text-center">\${item.quantity}</td>
+          <td class="text-right">R$ \${Number(item.price).toFixed(2).replace('.', ',')}</td>
+          <td class="text-right">R$ \${(Number(item.price) * item.quantity).toFixed(2).replace('.', ',')}</td>
+        </tr>\`);
       });
       printWindow.document.write('</tbody></table>');
       
       printWindow.document.write('<div class="summary-section">');
       if (saleData.paymentMethod) {
-         printWindow.document.write(`<div><span>Tipo de Pagamento:</span> <span>${saleData.paymentMethod}</span></div>`);
+         printWindow.document.write(\`<div><span>Tipo de Pagamento:</span> <span>\${saleData.paymentMethod}</span></div>\`);
       }
-      printWindow.document.write(`<div class="grand-total"><span>VALOR TOTAL:</span> <span>R$ ${saleData.totalAmount.toFixed(2).replace('.', ',')}</span></div>`);
+      printWindow.document.write(\`<div class="grand-total"><span>VALOR TOTAL:</span> <span>R$ \${saleData.totalAmount.toFixed(2).replace('.', ',')}</span></div>\`);
       printWindow.document.write('</div>');
 
       printWindow.document.write('</div></body></html>');
@@ -232,10 +247,9 @@ export default function CounterSalesPage() {
 
     const saleToSave: SaleInput = {
       clientName: clientNameForSale || null,
-      items: cartItems.map(({ id, ...item }) => item), // Remove client-side temp ID
+      items: cartItems.map(({ id, sku, ...item }) => item), // Remove client-side temp ID and sku
       paymentMethod: paymentMethod || null,
       totalAmount: calculateTotal(),
-      // saleId and date will be handled by the service or backend
     };
     
     addSaleMutation.mutate(saleToSave);
@@ -286,18 +300,20 @@ export default function CounterSalesPage() {
               <Label htmlFor="skuInput">SKU do Produto</Label>
               <Input 
                 id="skuInput"
-                placeholder="Escanear ou inserir SKU (funcionalidade de busca pendente)" 
+                placeholder="Escanear ou inserir SKU" 
                 value={skuInput}
                 onChange={(e) => setSkuInput(e.target.value)}
-                onKeyPress={(e) => { if (e.key === 'Enter') handleAddItem(); }}
+                onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(); } }}
                 className="text-base"
+                disabled={isLookingUpSku}
               />
             </div>
             <Button variant="outline" size="icon" onClick={() => alert("Funcionalidade de scanner pendente")} aria-label="Escanear produto" className="h-10 w-10">
               <ScanLine className="h-5 w-5"/>
             </Button>
-            <Button onClick={handleAddItem} className="h-10">
-              <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Item
+            <Button onClick={handleAddItem} className="h-10" disabled={isLookingUpSku}>
+              {isLookingUpSku ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />} 
+              Adicionar Item
             </Button>
           </div>
 
@@ -359,10 +375,10 @@ export default function CounterSalesPage() {
         </CardContent>
         <CardFooter className="border-t pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
             <Button variant="outline" onClick={() => handlePrintSaleReceipt({
-                saleId: `PREVIEW-${Date.now().toString().slice(-6)}`,
+                saleId: \`PREVIEW-\${Date.now().toString().slice(-6)}\`,
                 date: new Date().toLocaleString('pt-BR'),
                 clientName: clientNameForSale,
-                items: cartItems.map(({id, ...item}) => item),
+                items: cartItems.map(({id, sku, ...item}) => item),
                 paymentMethod,
                 totalAmount: calculateTotal()
             })} 
