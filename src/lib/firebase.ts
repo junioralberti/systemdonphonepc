@@ -1,6 +1,6 @@
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getFirestore, type Firestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
@@ -17,6 +17,7 @@ let app: FirebaseApp;
 let db: Firestore;
 let auth: Auth;
 let storage: FirebaseStorage;
+let persistenceAttempted = false; // Flag to ensure enablePersistence is only attempted once per session
 
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
@@ -25,7 +26,31 @@ if (!getApps().length) {
 }
 
 db = getFirestore(app);
+
+// Attempt to enable persistence only once
+if (typeof window !== 'undefined' && !persistenceAttempted) {
+  persistenceAttempted = true;
+  enableIndexedDbPersistence(db, { cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+    .then(() => {
+      console.log("Firestore offline persistence enabled successfully.");
+    })
+    .catch((err) => {
+      if (err.code === 'failed-precondition') {
+        // This can happen if multiple tabs are open, as persistence can only be enabled in one.
+        // It's also possible an already initialized persistence instance is active.
+        console.warn("Firestore offline persistence failed (failed-precondition). This may be due to multiple tabs open or existing persistence.");
+      } else if (err.code === 'unimplemented') {
+        // The current browser does not support all of the features required to enable persistence.
+        console.warn("Firestore offline persistence failed (unimplemented). The browser may not support the required features.");
+      } else {
+        console.error("An unknown error occurred while enabling Firestore offline persistence:", err);
+      }
+    });
+}
+
+
 auth = getAuth(app);
 storage = getStorage(app);
 
 export { app, db, auth, storage };
+
