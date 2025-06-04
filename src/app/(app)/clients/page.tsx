@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import type { UseFormReturn } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,11 +15,20 @@ import type { Client } from "@/lib/schemas/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const initialClientFormValues: Partial<Client> = {
+  name: "",
+  email: "",
+  phone: "",
+  address: "",
+};
+
 export default function ClientsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  
+  // State to control the default values for the add client form, allowing reset
+  const [addClientFormDefaultValues, setAddClientFormDefaultValues] = useState<Partial<Client>>(initialClientFormValues);
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -43,7 +53,8 @@ export default function ClientsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       toast({ title: "Cliente Adicionado", description: "Novo cliente adicionado com sucesso." });
-      setIsAddDialogOpen(false);
+      setIsAddDialogOpen(false); // This should close the dialog
+      setAddClientFormDefaultValues(initialClientFormValues); // Reset form values for next add
     },
     onError: (error: Error) => {
       toast({ title: "Erro", description: `Falha ao adicionar cliente: ${error.message}`, variant: "destructive" });
@@ -81,7 +92,7 @@ export default function ClientsPage() {
 
   const handleUpdateClient = async (data: Client) => {
     if (!editingClient || !editingClient.id) return;
-    const { id, createdAt, updatedAt, ...clientData } = data; // createdAt and updatedAt are managed by Firestore
+    const { id, createdAt, updatedAt, ...clientData } = data; 
     await updateClientMutation.mutateAsync({ id: editingClient.id, data: clientData });
   };
 
@@ -93,6 +104,12 @@ export default function ClientsPage() {
     setEditingClient(client);
     setIsEditDialogOpen(true);
   };
+
+  // When opening the add dialog, ensure the form values are reset.
+  const openAddDialog = () => {
+    setAddClientFormDefaultValues(initialClientFormValues); 
+    setIsAddDialogOpen(true);
+  }
   
   const ClientListSkeleton = () => (
     <div className="space-y-3">
@@ -115,9 +132,16 @@ export default function ClientsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="font-headline text-3xl font-semibold">Gerenciamento de Clientes</h1>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
+          setIsAddDialogOpen(isOpen);
+          if (!isOpen) {
+            // Also reset if dialog is closed manually (e.g. by clicking X or overlay)
+            setAddClientFormDefaultValues(initialClientFormValues); 
+          }
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            {/* Call openAddDialog to ensure form state is reset before opening */}
+            <Button onClick={openAddDialog}> 
               <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Novo Cliente
             </Button>
           </DialogTrigger>
@@ -129,6 +153,7 @@ export default function ClientsPage() {
             <ClientForm 
               onSubmit={handleAddClient} 
               isLoading={addClientMutation.isPending} 
+              defaultValues={addClientFormDefaultValues} // Pass the state for default values
             />
           </DialogContent>
         </Dialog>

@@ -15,6 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Loader2 } from "lucide-react";
+import React from "react"; // Import React
 
 interface ClientFormProps {
   onSubmit: (data: Client) => Promise<void>;
@@ -36,10 +37,16 @@ export function ClientForm({ onSubmit, defaultValues, isEditing = false, isLoadi
 
   const handleFormSubmit = async (data: Client) => {
     await onSubmit(data);
-    if (!isEditing && !isLoading) { // only reset if not editing and not currently loading (e.g. submission succeeded)
-        form.reset({ name: "", email: "", phone: "", address: "" });
-    }
   };
+
+  React.useEffect(() => {
+    if (defaultValues) {
+        // Reset form when defaultValues change.
+        // This is useful if the parent component wants to clear the form after submission.
+        form.reset(defaultValues);
+    }
+  }, [defaultValues, form]); // form.reset was missing, form was added for completeness
+
 
   return (
     <Form {...form}>
