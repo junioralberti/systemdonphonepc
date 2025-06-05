@@ -28,7 +28,8 @@ service cloud.firestore {
     // Clients Collection
     match /clients/{clientId} {
       allow read: if isUserOrAdmin();
-      allow create, update, delete: if isAdmin();
+      allow create: if isUserOrAdmin(); // CHANGED: Now any authenticated user can create clients
+      allow update, delete: if isAdmin();
     }
 
     // Products Collection
