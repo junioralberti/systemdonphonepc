@@ -157,7 +157,7 @@ export default function CounterSalesPage() {
     if (printWindow) {
       printWindow.document.write('<html><head><title>Comprovante de Venda</title>');
       printWindow.document.write('<style>');
-      printWindow.document.write(\`
+      printWindow.document.write(`
         body { font-family: 'Arial', sans-serif; margin: 20px; font-size: 10pt; color: #333; }
         .print-container { width: 100%; max-width: 700px; margin: auto; }
         .establishment-header { display: flex; align-items: flex-start; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
@@ -177,7 +177,7 @@ export default function CounterSalesPage() {
         .summary-section div { display: flex; justify-content: space-between; margin-bottom: 5px; }
         .summary-section .grand-total { font-size: 11pt; font-weight: bold; }
         h1.receipt-title { text-align: center; font-size: 16pt; margin-bottom: 15px; color: #000;}
-      \`);
+      `);
       printWindow.document.write('</style></head><body><div class="print-container">');
 
       printWindow.document.write('<div class="establishment-header">');
