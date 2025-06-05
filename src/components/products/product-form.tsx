@@ -35,7 +35,12 @@ export function ProductForm({ onSubmit, defaultValues, isEditing = false, isLoad
   });
 
   const handleFormSubmit = async (data: Product) => {
-    await onSubmit(data);
+    // Convert SKU to uppercase before submitting
+    const productDataWithUppercaseSku = {
+      ...data,
+      sku: data.sku.toUpperCase(),
+    };
+    await onSubmit(productDataWithUppercaseSku);
     if (!isEditing && !isLoading) {
       form.reset({ name: "", sku: "", price: 0, stock: 0 });
     }
@@ -64,7 +69,15 @@ export function ProductForm({ onSubmit, defaultValues, isEditing = false, isLoad
             <FormItem>
               <FormLabel>SKU</FormLabel>
               <FormControl>
-                <Input placeholder="Ex: PEL-IP13-VID3D" {...field} />
+                <Input 
+                  placeholder="Ex: PEL-IP13-VID3D" 
+                  {...field} 
+                  onInput={(e) => { // Optional: force uppercase display as user types
+                    const input = e.target as HTMLInputElement;
+                    input.value = input.value.toUpperCase();
+                    field.onChange(input.value); // Update RHF
+                  }}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
