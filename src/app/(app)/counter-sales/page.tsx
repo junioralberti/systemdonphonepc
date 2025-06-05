@@ -183,44 +183,44 @@ export default function CounterSalesPage() {
       printWindow.document.write('<div class="establishment-header">');
       if (establishmentData.logoUrl) {
         const logoHint = establishmentData.logoUrl.startsWith('https://placehold.co') ? 'data-ai-hint="company logo placeholder"' : 'data-ai-hint="company logo"';
-        printWindow.document.write(\`<div class="logo-container"><img src="\${establishmentData.logoUrl}" alt="Logo" \${logoHint} /></div>\`);
+        printWindow.document.write(`<div class="logo-container"><img src="${establishmentData.logoUrl}" alt="Logo" ${logoHint} /></div>`);
       }
       printWindow.document.write('<div class="establishment-info">');
-      printWindow.document.write(\`<strong>\${establishmentData.businessName || "Nome não configurado"}</strong><br/>\`);
-      printWindow.document.write(\`\${establishmentData.businessAddress || "Endereço não configurado"}<br/>\`);
-      if(establishmentData.businessCnpj) printWindow.document.write(\`CNPJ: \${establishmentData.businessCnpj}<br/>\`);
+      printWindow.document.write(`<strong>${establishmentData.businessName || "Nome não configurado"}</strong><br/>`);
+      printWindow.document.write(`${establishmentData.businessAddress || "Endereço não configurado"}<br/>`);
+      if(establishmentData.businessCnpj) printWindow.document.write(`CNPJ: ${establishmentData.businessCnpj}<br/>`);
       if(establishmentData.businessPhone || establishmentData.businessEmail) {
-        printWindow.document.write(\`Telefone: \${establishmentData.businessPhone || ""} \${establishmentData.businessPhone && establishmentData.businessEmail ? '|' : ''} E-mail: \${establishmentData.businessEmail || ""}\`);
+        printWindow.document.write(`Telefone: ${establishmentData.businessPhone || ""} ${establishmentData.businessPhone && establishmentData.businessEmail ? '|' : ''} E-mail: ${establishmentData.businessEmail || ""}`);
       }
       printWindow.document.write('</div></div>');
 
 
-      printWindow.document.write(\`<h1 class="receipt-title">COMPROVANTE DE VENDA</h1>\`);
+      printWindow.document.write(`<h1 class="receipt-title">COMPROVANTE DE VENDA</h1>`);
       printWindow.document.write('<div class="details-grid">');
-      printWindow.document.write(\`<div><strong>Nº Venda:</strong> \${saleData.saleId}</div>\`);
-      printWindow.document.write(\`<div><strong>Data:</strong> \${saleData.date}</div>\`);
+      printWindow.document.write(`<div><strong>Nº Venda:</strong> ${saleData.saleId}</div>`);
+      printWindow.document.write(`<div><strong>Data:</strong> ${saleData.date}</div>`);
       if (saleData.clientName) {
-        printWindow.document.write(\`<div><strong>Cliente:</strong> \${saleData.clientName}</div>\`);
+        printWindow.document.write(`<div><strong>Cliente:</strong> ${saleData.clientName}</div>`);
       }
       printWindow.document.write('</div>');
 
       printWindow.document.write('<div class="section-title">Itens</div>');
       printWindow.document.write('<table class="items-table"><thead><tr><th>Produto</th><th class="text-center">Qtd</th><th class="text-right">Preço Unit.</th><th class="text-right">Subtotal</th></tr></thead><tbody>');
       saleData.items.forEach(item => {
-        printWindow.document.write(\`<tr>
-          <td>\${item.name}</td>
-          <td class="text-center">\${item.quantity}</td>
-          <td class="text-right">R$ \${Number(item.price).toFixed(2).replace('.', ',')}</td>
-          <td class="text-right">R$ \${(Number(item.price) * item.quantity).toFixed(2).replace('.', ',')}</td>
-        </tr>\`);
+        printWindow.document.write(`<tr>
+          <td>${item.name}</td>
+          <td class="text-center">${item.quantity}</td>
+          <td class="text-right">R$ ${Number(item.price).toFixed(2).replace('.', ',')}</td>
+          <td class="text-right">R$ ${(Number(item.price) * item.quantity).toFixed(2).replace('.', ',')}</td>
+        </tr>`);
       });
       printWindow.document.write('</tbody></table>');
       
       printWindow.document.write('<div class="summary-section">');
       if (saleData.paymentMethod) {
-         printWindow.document.write(\`<div><span>Tipo de Pagamento:</span> <span>\${saleData.paymentMethod}</span></div>\`);
+         printWindow.document.write(`<div><span>Tipo de Pagamento:</span> <span>${saleData.paymentMethod}</span></div>`);
       }
-      printWindow.document.write(\`<div class="grand-total"><span>VALOR TOTAL:</span> <span>R$ \${saleData.totalAmount.toFixed(2).replace('.', ',')}</span></div>\`);
+      printWindow.document.write(`<div class="grand-total"><span>VALOR TOTAL:</span> <span>R$ ${saleData.totalAmount.toFixed(2).replace('.', ',')}</span></div>`);
       printWindow.document.write('</div>');
 
       printWindow.document.write('</div></body></html>');
@@ -375,7 +375,7 @@ export default function CounterSalesPage() {
         </CardContent>
         <CardFooter className="border-t pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
             <Button variant="outline" onClick={() => handlePrintSaleReceipt({
-                saleId: \`PREVIEW-\${Date.now().toString().slice(-6)}\`,
+                saleId: `PREVIEW-${Date.now().toString().slice(-6)}`,
                 date: new Date().toLocaleString('pt-BR'),
                 clientName: clientNameForSale,
                 items: cartItems.map(({id, sku, ...item}) => item),
