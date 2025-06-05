@@ -1,0 +1,81 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if user is an admin
+    // Assumes a custom claim 'role' is set on the auth token
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+
+    // Helper function to check if user is a standard user or admin
+    function isUserOrAdmin() {
+      return isAuthenticated() && (request.auth.token.role == 'user' || request.auth.token.role == 'admin');
+    }
+
+    // Helper function to check if the user is the owner of the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Clients Collection
+    match /clients/{clientId} {
+      allow read: if isUserOrAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Products Collection
+    match /products/{productId} {
+      allow read: if isUserOrAdmin();
+      // CHANGED: Now any authenticated user can create, update, and delete products
+      allow create, update, delete: if isUserOrAdmin();
+    }
+
+    // Providers Collection
+    match /providers/{providerId} {
+      allow read: if isUserOrAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isAdmin() || (isAuthenticated() && isOwner(userId));
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && isOwner(userId));
+      allow delete: if isAdmin();
+    }
+
+    // Service Orders Collection
+    match /serviceOrders/{orderId} {
+      allow read: if isUserOrAdmin();
+      allow create: if isUserOrAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Sales Collection
+    match /sales/{saleId} {
+      allow read: if isUserOrAdmin();
+      allow create: if isUserOrAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // System Settings (Establishment Details)
+    match /systemSettings/establishmentDetails {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Default deny all other paths - good practice
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
