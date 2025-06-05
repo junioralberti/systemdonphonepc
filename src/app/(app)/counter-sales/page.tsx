@@ -8,16 +8,20 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as TableSummaryFooter } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ScanLine, PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User, Loader2 } from "lucide-react";
+import { ScanLine, PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User, Loader2, PackagePlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
 import { addSale, type SaleInput, type CartItemInput } from "@/services/salesService"; 
-import { getProductBySku } from "@/services/productService"; // Import getProductBySku
+import { getProductBySku, addProduct } from "@/services/productService"; 
+import type { Product } from "@/lib/schemas/product";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ProductForm } from "@/components/products/product-form";
+
 
 interface CartItem extends CartItemInput {
   id: string; 
-  sku: string; // Add SKU to cart item for potential re-checks or identification
+  sku: string; 
 }
 
 type PaymentMethod = "Dinheiro" | "Cartão de Crédito" | "Cartão de Débito" | "PIX";
@@ -32,6 +36,7 @@ export default function CounterSalesPage() {
   const queryClient = useQueryClient();
   const [establishmentDataForPrint, setEstablishmentDataForPrint] = useState<EstablishmentSettings | null>(null);
   const [isLookingUpSku, setIsLookingUpSku] = useState(false);
+  const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -58,7 +63,7 @@ export default function CounterSalesPage() {
         saleId, 
         date: new Date().toLocaleString('pt-BR'),
         clientName: clientNameForSale || null,
-        items: cartItems.map(({id, sku, ...item}) => item), // Remove client-side temp ID and sku for saving
+        items: cartItems.map(({id, sku, ...item}) => item), 
         paymentMethod: paymentMethod || null,
         totalAmount: calculateTotal(),
       };
@@ -67,6 +72,22 @@ export default function CounterSalesPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao Salvar Venda", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const addProductMutationFromDialog = useMutation({
+    mutationFn: (newProductData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => addProduct(newProductData),
+    onSuccess: (newProductId, submittedProductData) => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast({
+        title: "Produto Adicionado",
+        description: `${submittedProductData.name} (SKU: ${submittedProductData.sku}) cadastrado com sucesso.`,
+      });
+      setIsAddProductDialogOpen(false);
+      setSkuInput(submittedProductData.sku); 
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao Adicionar Produto", description: error.message, variant: "destructive" });
     },
   });
 
@@ -86,13 +107,11 @@ export default function CounterSalesPage() {
 
         if (existingItemIndex > -1) {
           const updatedCartItems = [...cartItems];
-          // Check stock before incrementing? For now, just increment.
           updatedCartItems[existingItemIndex].quantity += 1;
           setCartItems(updatedCartItems);
         } else {
-          // Check stock before adding? For now, just add.
           setCartItems([...cartItems, { 
-            id: product.id + `-${Date.now()}`, // Client-side unique ID for the cart item instance
+            id: product.id + `-${Date.now()}`, 
             sku: product.sku,
             name: product.name, 
             price: product.price, 
@@ -102,7 +121,7 @@ export default function CounterSalesPage() {
         setSkuInput("");
         toast({ title: "Item Adicionado", description: `${product.name} adicionado ao carrinho.` });
       } else {
-        toast({ title: "Produto Não Encontrado", description: `Nenhum produto encontrado com o SKU: ${productSku}`, variant: "destructive" });
+        toast({ title: "Produto Não Encontrado", description: `Nenhum produto encontrado com o SKU: ${productSku}. Cadastre-o se necessário.`, variant: "destructive" });
       }
     } catch (error) {
       console.error("Error fetching product by SKU:", error);
@@ -247,12 +266,17 @@ export default function CounterSalesPage() {
 
     const saleToSave: SaleInput = {
       clientName: clientNameForSale || null,
-      items: cartItems.map(({ id, sku, ...item }) => item), // Remove client-side temp ID and sku
+      items: cartItems.map(({ id, sku, ...item }) => item), 
       paymentMethod: paymentMethod || null,
       totalAmount: calculateTotal(),
     };
     
     addSaleMutation.mutate(saleToSave);
+  };
+
+  const handleAddProductFromDialog = async (data: Product) => {
+    const { id, createdAt, updatedAt, ...productData } = data;
+    await addProductMutationFromDialog.mutateAsync(productData);
   };
 
   return (
@@ -295,8 +319,8 @@ export default function CounterSalesPage() {
             </div>
           </div>
 
-          <div className="flex gap-2 items-end">
-            <div className="flex-grow">
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="flex-grow min-w-[200px]">
               <Label htmlFor="skuInput">SKU do Produto</Label>
               <Input 
                 id="skuInput"
@@ -305,15 +329,19 @@ export default function CounterSalesPage() {
                 onChange={(e) => setSkuInput(e.target.value)}
                 onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(); } }}
                 className="text-base"
-                disabled={isLookingUpSku}
+                disabled={isLookingUpSku || addSaleMutation.isPending || addProductMutationFromDialog.isPending}
               />
             </div>
             <Button variant="outline" size="icon" onClick={() => alert("Funcionalidade de scanner pendente")} aria-label="Escanear produto" className="h-10 w-10">
               <ScanLine className="h-5 w-5"/>
             </Button>
-            <Button onClick={handleAddItem} className="h-10" disabled={isLookingUpSku}>
+            <Button onClick={handleAddItem} className="h-10" disabled={isLookingUpSku || addSaleMutation.isPending || addProductMutationFromDialog.isPending}>
               {isLookingUpSku ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />} 
               Adicionar Item
+            </Button>
+            <Button variant="secondary" onClick={() => setIsAddProductDialogOpen(true)} className="h-10" disabled={isLookingUpSku || addSaleMutation.isPending || addProductMutationFromDialog.isPending}>
+              {addProductMutationFromDialog.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackagePlus className="mr-2 h-4 w-4" />}
+              Cadastrar Produto
             </Button>
           </div>
 
@@ -402,6 +430,21 @@ export default function CounterSalesPage() {
             </Button>
         </CardFooter>
       </Card>
+
+      <Dialog open={isAddProductDialogOpen} onOpenChange={setIsAddProductDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Cadastrar Novo Produto</DialogTitle>
+            <DialogDescription>
+              Preencha os detalhes do novo produto para adicioná-lo ao sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <ProductForm
+            onSubmit={handleAddProductFromDialog}
+            isLoading={addProductMutationFromDialog.isPending}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
