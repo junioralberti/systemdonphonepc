@@ -70,7 +70,8 @@ service cloud.firestore {
     // System Settings (Establishment Details)
     match /systemSettings/establishmentDetails {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      // CHANGED: Now any authenticated user with role 'admin' or 'user' can write
+      allow write: if isUserOrAdmin();
     }
 
     // Default deny all other paths - good practice
@@ -79,3 +80,4 @@ service cloud.firestore {
     }
   }
 }
+
