@@ -27,25 +27,24 @@ service cloud.firestore {
 
     // Clients Collection
     match /clients/{clientId} {
-      allow read: if isUserOrAdmin();
-      allow create: if isUserOrAdmin(); // CHANGED: Now any authenticated user can create clients
-      allow update, delete: if isAdmin();
+      // CHANGED: Now any authenticated user can create, read, update, and delete clients
+      allow read, create, update, delete: if isUserOrAdmin();
     }
 
     // Products Collection
     match /products/{productId} {
-      allow read: if isUserOrAdmin();
-      // CHANGED: Now any authenticated user can create, update, and delete products
-      allow create, update, delete: if isUserOrAdmin();
+      // CHANGED: Now any authenticated user can create, read, update, and delete products
+      allow read, create, update, delete: if isUserOrAdmin();
     }
 
     // Providers Collection
     match /providers/{providerId} {
-      allow read: if isUserOrAdmin();
-      allow create, update, delete: if isAdmin();
+      // CHANGED: Now any authenticated user can create, read, update, and delete providers
+      allow read, create, update, delete: if isUserOrAdmin();
     }
 
     // Users Collection
+    // KEPT AS IS: User management remains restricted for security.
     match /users/{userId} {
       allow read: if isAdmin() || (isAuthenticated() && isOwner(userId));
       allow create: if isAdmin();
@@ -55,24 +54,20 @@ service cloud.firestore {
 
     // Service Orders Collection
     match /serviceOrders/{orderId} {
-      allow read: if isUserOrAdmin();
-      allow create: if isUserOrAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      // CHANGED: Now any authenticated user can create, read, update, and delete service orders
+      allow read, create, update, delete: if isUserOrAdmin();
     }
 
     // Sales Collection
     match /sales/{saleId} {
-      allow read: if isUserOrAdmin();
-      allow create: if isUserOrAdmin();
-      allow update, delete: if isAdmin();
+      // CHANGED: Now any authenticated user can create, read, update, and delete sales
+      allow read, create, update, delete: if isUserOrAdmin();
     }
 
     // System Settings (Establishment Details)
     match /systemSettings/establishmentDetails {
-      allow read: if isAuthenticated();
-      // CHANGED: Now any authenticated user with role 'admin' or 'user' can write
-      allow write: if isUserOrAdmin();
+      // CHANGED: Now any authenticated user with role 'admin' or 'user' can read and write
+      allow read, write: if isUserOrAdmin();
     }
 
     // Default deny all other paths - good practice
@@ -81,4 +76,3 @@ service cloud.firestore {
     }
   }
 }
-
