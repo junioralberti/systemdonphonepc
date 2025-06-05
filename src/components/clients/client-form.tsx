@@ -45,7 +45,7 @@ export function ClientForm({ onSubmit, defaultValues, isEditing = false, isLoadi
         // This is useful if the parent component wants to clear the form after submission.
         form.reset(defaultValues);
     }
-  }, [defaultValues, form]); // form.reset was missing, form was added for completeness
+  }, [defaultValues, form.reset]); // Changed 'form' to 'form.reset' in dependency array
 
 
   return (
@@ -115,3 +115,4 @@ export function ClientForm({ onSubmit, defaultValues, isEditing = false, isLoadi
     </Form>
   );
 }
+
