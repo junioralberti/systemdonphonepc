@@ -36,19 +36,12 @@ const settingsFromDocData = (data: DocumentData | undefined): EstablishmentSetti
 
 export const getEstablishmentSettings = async (): Promise<EstablishmentSettings | null> => {
   const docRef = doc(db, SETTINGS_COLLECTION, ESTABLISHMENT_DOC_ID);
-  const docSnap = await getDoc(docRef); // docSnap is DocumentSnapshot
-  if (docSnap.exists()) { // Correct check on DocumentSnapshot
-    return settingsFromDocData(docSnap.data()); // Pass the data() to settingsFromDocData
+  const docSnap = await getDoc(docRef);
+  if (docSnap.exists()) {
+    return settingsFromDocData(docSnap.data());
   }
-  // Return default DonPhone details if no settings are found in Firestore
-  return {
-    businessName: "DONPHONE INFORMÁTICA E CELULARES",
-    businessAddress: "RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ",
-    businessCnpj: "58.435.813/0004-94",
-    businessPhone: "49991287685",
-    businessEmail: "contato@donphone.com",
-    logoUrl: "https://placehold.co/180x60.png", // Default placeholder logo
-  };
+  // Return null if no settings are found in Firestore, prompting for new setup
+  return null;
 };
 
 export const saveEstablishmentSettings = async (
@@ -65,8 +58,17 @@ export const saveEstablishmentSettings = async (
   if (logoFile) {
     const logoStorageRef = ref(storage, LOGO_STORAGE_PATH);
     try {
-        await getDownloadURL(logoStorageRef); 
-        await deleteObject(logoStorageRef); 
+        // Attempt to delete old logo only if a new one is being uploaded
+        const existingLogoUrl = currentSettings?.logoUrl;
+        if (existingLogoUrl && !existingLogoUrl.startsWith('https://placehold.co')) { // Avoid deleting placeholder
+            // Check if the existing logo is the one we manage
+            // This check can be tricky if the URL isn't exactly LOGO_STORAGE_PATH's derived URL
+            // For simplicity, we assume if a logoUrl exists and isn't placeholder, it's ours.
+            // More robust check might involve checking if LOGO_STORAGE_PATH is part of existingLogoUrl
+             await deleteObject(ref(storage, LOGO_STORAGE_PATH)).catch(err => {
+                if (err.code !== 'storage/object-not-found') console.warn("Old logo deletion attempt failed (might not exist or other issue):", err);
+            });
+        }
     } catch (error: any) {
         if (error.code !== 'storage/object-not-found') {
             console.warn("Could not delete old logo, it might not exist or another error occurred:", error);
@@ -75,7 +77,8 @@ export const saveEstablishmentSettings = async (
     await uploadBytes(logoStorageRef, logoFile);
     newLogoUrl = await getDownloadURL(logoStorageRef);
 
-  } else if (logoFile === null && currentSettings?.logoUrl) {
+  } else if (logoFile === null && currentSettings?.logoUrl && !currentSettings.logoUrl.startsWith('https://placehold.co')) {
+    // logoFile is explicitly null (meaning user wants to remove it) AND there was a logo previously that wasn't a placeholder
     try {
         const logoToDeleteRef = ref(storage, LOGO_STORAGE_PATH); 
         await deleteObject(logoToDeleteRef);
@@ -84,7 +87,7 @@ export const saveEstablishmentSettings = async (
              console.warn("Could not delete logo during removal, it might not exist or path is incorrect:", error);
         }
     }
-    newLogoUrl = ""; 
+    newLogoUrl = ""; // Set to empty string to indicate no logo
   }
 
 
@@ -93,17 +96,18 @@ export const saveEstablishmentSettings = async (
     updatedAt: serverTimestamp() as Timestamp,
   };
   
-  if (newLogoUrl !== undefined) {
+  if (newLogoUrl !== undefined) { // If newLogoUrl was set (either to a URL or to "")
     dataToSave.logoUrl = newLogoUrl;
-  } else if (currentSettings?.logoUrl) {
+  } else if (currentSettings?.logoUrl) { // Otherwise, retain the existing logo URL
     dataToSave.logoUrl = currentSettings.logoUrl;
-  } else {
+  } else { // If no current logo and no new one, set to empty
     dataToSave.logoUrl = ""; 
   }
 
 
   await setDoc(docRef, dataToSave, { merge: true }); 
   
+  // Return the saved data including the potentially updated logoUrl
   return {
       ...settingsData,
       logoUrl: dataToSave.logoUrl

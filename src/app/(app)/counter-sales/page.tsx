@@ -45,6 +45,7 @@ export default function CounterSalesPage() {
             setEstablishmentDataForPrint(settings);
         } catch (error) {
             console.error("Failed to fetch establishment settings for print:", error);
+            // Fallback is handled directly in the print function
         }
     };
     fetchSettings();
@@ -163,13 +164,13 @@ export default function CounterSalesPage() {
     paymentMethod?: PaymentMethod | null;
     totalAmount: number;
   }) => {
-    const establishmentData = establishmentDataForPrint || {
-      businessName: "DONPHONE INFORMÁTICA E CELULARES",
-      businessAddress: "RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ",
-      businessCnpj: "58.435.813/0004-94",
-      businessPhone: "49991287685",
-      businessEmail: "contato@donphone.com",
-      logoUrl: "https://placehold.co/180x60.png"
+    const establishmentDataToUse = establishmentDataForPrint || {
+      businessName: "Nome da Empresa Aqui",
+      businessAddress: "Endereço da Empresa Aqui",
+      businessCnpj: "Seu CNPJ",
+      businessPhone: "Seu Telefone",
+      businessEmail: "Seu Email",
+      logoUrl: "https://placehold.co/180x60.png?text=Sua+Logo"
     };
 
     const printWindow = window.open('', '_blank', 'height=700,width=800');
@@ -200,16 +201,16 @@ export default function CounterSalesPage() {
       printWindow.document.write('</style></head><body><div class="print-container">');
 
       printWindow.document.write('<div class="establishment-header">');
-      if (establishmentData.logoUrl) {
-        const logoHint = establishmentData.logoUrl.startsWith('https://placehold.co') ? 'data-ai-hint="company logo placeholder"' : 'data-ai-hint="company logo"';
-        printWindow.document.write(`<div class="logo-container"><img src="${establishmentData.logoUrl}" alt="Logo" ${logoHint} /></div>`);
+      if (establishmentDataToUse.logoUrl) {
+        const logoHint = establishmentDataToUse.logoUrl.includes('placehold.co') ? 'data-ai-hint="company logo placeholder"' : 'data-ai-hint="company logo"';
+        printWindow.document.write(`<div class="logo-container"><img src="${establishmentDataToUse.logoUrl}" alt="Logo" ${logoHint} /></div>`);
       }
       printWindow.document.write('<div class="establishment-info">');
-      printWindow.document.write(`<strong>${establishmentData.businessName || "Nome não configurado"}</strong><br/>`);
-      printWindow.document.write(`${establishmentData.businessAddress || "Endereço não configurado"}<br/>`);
-      if(establishmentData.businessCnpj) printWindow.document.write(`CNPJ: ${establishmentData.businessCnpj}<br/>`);
-      if(establishmentData.businessPhone || establishmentData.businessEmail) {
-        printWindow.document.write(`Telefone: ${establishmentData.businessPhone || ""} ${establishmentData.businessPhone && establishmentData.businessEmail ? '|' : ''} E-mail: ${establishmentData.businessEmail || ""}`);
+      printWindow.document.write(`<strong>${establishmentDataToUse.businessName || "Nome da Empresa"}</strong><br/>`);
+      printWindow.document.write(`${establishmentDataToUse.businessAddress || "Endereço da Empresa"}<br/>`);
+      if(establishmentDataToUse.businessCnpj) printWindow.document.write(`CNPJ: ${establishmentDataToUse.businessCnpj}<br/>`);
+      if(establishmentDataToUse.businessPhone || establishmentDataToUse.businessEmail) {
+        printWindow.document.write(`Telefone: ${establishmentDataToUse.businessPhone || ""} ${establishmentDataToUse.businessPhone && establishmentDataToUse.businessEmail ? '|' : ''} E-mail: ${establishmentDataToUse.businessEmail || ""}`);
       }
       printWindow.document.write('</div></div>');
 

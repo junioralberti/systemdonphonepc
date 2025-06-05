@@ -15,28 +15,6 @@ import { Building, Save, Loader2, UploadCloud, AlertTriangle, RotateCcw } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const DONPHONE_DEFAULTS_REFERENCE: EstablishmentSettings = {
-  businessName: "DONPHONE INFORMÁTICA E CELULARES",
-  businessAddress: "RUA CRISTALINO MACHADO, N°:95, BAIRRO: CENTRO, CIDADE: BARRACÃO, ESTADO: PARANÁ",
-  businessCnpj: "58.435.813/0004-94",
-  businessPhone: "49991287685",
-  businessEmail: "contato@donphone.com",
-  logoUrl: "https://placehold.co/180x60.png",
-};
-
-const isDataEffectivelyDefault = (settings: EstablishmentSettings | null): boolean => {
-  if (!settings) return true; 
-  return (
-    settings.businessName === DONPHONE_DEFAULTS_REFERENCE.businessName &&
-    settings.businessAddress === DONPHONE_DEFAULTS_REFERENCE.businessAddress &&
-    settings.businessCnpj === DONPHONE_DEFAULTS_REFERENCE.businessCnpj &&
-    settings.businessPhone === DONPHONE_DEFAULTS_REFERENCE.businessPhone &&
-    settings.businessEmail === DONPHONE_DEFAULTS_REFERENCE.businessEmail &&
-    settings.logoUrl === DONPHONE_DEFAULTS_REFERENCE.logoUrl
-  );
-};
-
-
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -47,7 +25,7 @@ export default function SettingsPage() {
   const [businessPhone, setBusinessPhone] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined);
+  const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined); // undefined means no change, null means remove existing
   const [originalLogoUrl, setOriginalLogoUrl] = useState<string | null>(null);
 
   const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError, refetch: refetchEstablishmentSettings, isFetching: isFetchingSettings } = useQuery<EstablishmentSettings | null, Error>({
@@ -57,33 +35,28 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    // Este useEffect preencherá o formulário se os dados forem carregados com sucesso
-    // e não forem os dados padrão. Se os dados padrão forem carregados ou houver erro,
-    // os campos permanecerão com seus valores iniciais (vazios).
-    if (establishmentSettings) { 
-      if (isDataEffectivelyDefault(establishmentSettings)) {
-        setBusinessName("");
-        setBusinessAddress("");
-        setBusinessCnpj("");
-        setBusinessPhone("");
-        setBusinessEmail("");
-        setLogoPreview(null);
-        setOriginalLogoUrl(null); 
+    if (establishmentSettings) { // Data exists in Firestore
+      setBusinessName(establishmentSettings.businessName || "");
+      setBusinessAddress(establishmentSettings.businessAddress || "");
+      setBusinessCnpj(establishmentSettings.businessCnpj || "");
+      setBusinessPhone(establishmentSettings.businessPhone || "");
+      setBusinessEmail(establishmentSettings.businessEmail || "");
+      
+      if (establishmentSettings.logoUrl) {
+        setLogoPreview(establishmentSettings.logoUrl);
+        setOriginalLogoUrl(establishmentSettings.logoUrl);
       } else {
-        setBusinessName(establishmentSettings.businessName || "");
-        setBusinessAddress(establishmentSettings.businessAddress || "");
-        setBusinessCnpj(establishmentSettings.businessCnpj || "");
-        setBusinessPhone(establishmentSettings.businessPhone || "");
-        setBusinessEmail(establishmentSettings.businessEmail || "");
-        
-        if (establishmentSettings.logoUrl && establishmentSettings.logoUrl !== DONPHONE_DEFAULTS_REFERENCE.logoUrl) {
-          setLogoPreview(establishmentSettings.logoUrl);
-          setOriginalLogoUrl(establishmentSettings.logoUrl);
-        } else {
-          setLogoPreview(null);
-          setOriginalLogoUrl(establishmentSettings.logoUrl === DONPHONE_DEFAULTS_REFERENCE.logoUrl ? establishmentSettings.logoUrl : null);
-        }
+        setLogoPreview(null);
+        setOriginalLogoUrl(null);
       }
+    } else { // No data in Firestore (or error during fetch, handled by settingsError), so fields are for "novo cadastro"
+      setBusinessName("");
+      setBusinessAddress("");
+      setBusinessCnpj("");
+      setBusinessPhone("");
+      setBusinessEmail("");
+      setLogoPreview(null);
+      setOriginalLogoUrl(null);
     }
   }, [establishmentSettings]);
 
@@ -121,7 +94,7 @@ export default function SettingsPage() {
   };
 
   const handleRemoveLogo = () => {
-    setLogoFile(null); 
+    setLogoFile(null); // Mark for removal
     setLogoPreview(null);
   };
 
@@ -137,8 +110,6 @@ export default function SettingsPage() {
     saveSettingsMutation.mutate({ settingsData: settingsToSave, logoToUpload: logoFile });
   };
   
-  // O formulário de Dados do Estabelecimento é renderizado diretamente.
-  // O estado de carregamento ou erro de 'establishmentSettings' não bloqueia a renderização do formulário.
   const EstablishmentFormFields = () => (
     <form onSubmit={handleSaveEstablishmentData}>
       <CardContent className="space-y-6">
@@ -177,6 +148,7 @@ export default function SettingsPage() {
                 height={60} 
                 className="max-h-16 object-contain" 
                 data-ai-hint="company logo"
+                unoptimized={logoPreview.startsWith('blob:')} // Add this if local blob URLs are used for preview
                 onError={() => {
                   setLogoPreview(null); 
                   toast({title: "Erro de Logo", description: "Não foi possível carregar a prévia do logo.", variant: "destructive"});
@@ -191,7 +163,7 @@ export default function SettingsPage() {
                 <Input id="logoUpload" type="file" accept="image/png, image/jpeg, image/webp, image/svg+xml" className="sr-only" onChange={handleLogoChange} />
               </Label>
             </Button>
-            {(logoPreview || logoFile === null) && (
+            {(logoPreview || logoFile === null) && ( // Show remove button if there's a preview OR if removal is explicitly requested
               <Button type="button" variant="ghost" onClick={handleRemoveLogo} className="text-destructive hover:text-destructive w-full sm:w-auto">
                 Remover Logo
               </Button>
@@ -201,8 +173,8 @@ export default function SettingsPage() {
         </div>
       </CardContent>
       <CardFooter className="border-t pt-6">
-        <Button type="submit" disabled={saveSettingsMutation.isPending || isFetchingSettings}>
-          {(saveSettingsMutation.isPending || isFetchingSettings) ? (
+        <Button type="submit" disabled={saveSettingsMutation.isPending || isFetchingSettings || isLoadingSettings}>
+          {(saveSettingsMutation.isPending || isFetchingSettings || isLoadingSettings) ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <Save className="mr-2 h-4 w-4" />
@@ -252,9 +224,19 @@ export default function SettingsPage() {
           <CardDescription>Insira as informações da sua loja. Estes dados aparecerão em comprovantes e O.S.</CardDescription>
         </CardHeader>
         
-        {/* Mostra alerta de erro se houver, mas não bloqueia o formulário */}
+        {isLoadingSettings && (
+            <CardContent>
+                <div className="space-y-4">
+                    <Skeleton className="h-8 w-1/2" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-1/3 mt-4" />
+                </div>
+            </CardContent>
+        )}
+        
         {settingsError && !isLoadingSettings && (
-           <CardContent className="pb-0"> {/* Ajuste de padding para não ter espaço extra se erro estiver sozinho */}
+           <CardContent className="pb-0">
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Erro ao Carregar Dados Salvos</AlertTitle>
@@ -262,15 +244,14 @@ export default function SettingsPage() {
                 Não foi possível buscar os dados do estabelecimento: {settingsError.message}. 
                 Você ainda pode preencher e salvar as informações abaixo.
                 <Button onClick={() => refetchEstablishmentSettings()} variant="link" className="p-0 h-auto ml-1 text-destructive hover:text-destructive/80" disabled={isFetchingSettings}>
-                  Tentar novamente
+                  {isFetchingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : "Tentar novamente"}
                 </Button>
               </AlertDescription>
             </Alert>
           </CardContent>
         )}
         
-        {/* O formulário é sempre renderizado aqui */}
-        <EstablishmentFormFields />
+        {!isLoadingSettings && <EstablishmentFormFields />}
       </Card>
     </div>
   );
