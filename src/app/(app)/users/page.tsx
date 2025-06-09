@@ -12,16 +12,16 @@ import { useRouter } from "next/navigation";
 import { UserForm } from "@/components/users/user-form";
 import { UsersTable } from "@/components/users/users-table";
 import { getUsers, addUser, updateUser, deleteUser } from "@/services/userService";
-import type { User } from "@/lib/schemas/user";
+import type { User, CreateUserFormData } from "@/lib/schemas/user"; // Import CreateUserFormData
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Define um tipo para os dados que serão realmente salvos, omitindo a senha.
-type UserDataToSave = Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'password' | 'confirmPassword'>;
+// Define um tipo para os dados que serão realmente salvos na atualização, omitindo a senha.
+type UserDataToUpdate = Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'password' | 'confirmPassword'>;
 
 
 export default function UsersPage() {
-  const { userRole, isAuthenticated } = useAuth(); 
+  const { userRole, isAuthenticated, firebaseUser } = useAuth(); 
   const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -54,7 +54,8 @@ export default function UsersPage() {
   }, [usersError, toast]);
 
   const addUserMutation = useMutation({
-    mutationFn: (newUserData: UserDataToSave) => addUser(newUserData),
+    // The mutationFn now expects CreateUserFormData or User, but addUser service expects User with password
+    mutationFn: (newUserData: CreateUserFormData | User) => addUser(newUserData as User),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({ title: "Usuário Adicionado", description: "Novo usuário adicionado com sucesso." });
@@ -66,7 +67,7 @@ export default function UsersPage() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<UserDataToSave> }) => updateUser(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<UserDataToUpdate> }) => updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({ title: "Sucesso!", description: "Usuário atualizado com sucesso." });
@@ -89,19 +90,28 @@ export default function UsersPage() {
     },
   });
 
-  const handleAddUser = async (data: User) => {
-    // Extrai apenas os campos que queremos salvar, omitindo senhas e campos de controle.
-    const { id, createdAt, updatedAt, password, confirmPassword, ...userDataToSave } = data;
-    await addUserMutation.mutateAsync(userDataToSave);
+  const handleAddUser = async (data: CreateUserFormData | User) => {
+    // addUser in userService expects User type with potentially password.
+    // CreateUserFormData is compatible here since it includes password.
+    await addUserMutation.mutateAsync(data as User);
   };
 
-  const handleUpdateUser = async (data: User) => {
+  const handleUpdateUser = async (data: User | CreateUserFormData) => {
     if (!editingUser || !editingUser.id) return;
-    const { id, createdAt, updatedAt, password, confirmPassword, ...userDataToSave } = data;
-    await updateUserMutation.mutateAsync({ id: editingUser.id, data: userDataToSave });
+    // For update, we send UserDataToUpdate. Ensure data is cast to User to access all fields if needed.
+    const { id, createdAt, updatedAt, password, confirmPassword, ...userDataToUpdate } = data as User;
+    await updateUserMutation.mutateAsync({ id: editingUser.id, data: userDataToUpdate });
   };
 
   const handleDeleteUser = async (userId: string) => {
+    if (firebaseUser?.uid === userId) {
+      toast({
+        title: "Ação não permitida",
+        description: "Você não pode excluir seu próprio usuário.",
+        variant: "destructive",
+      });
+      return;
+    }
     await deleteUserMutation.mutateAsync(userId);
   };
 
@@ -161,7 +171,8 @@ export default function UsersPage() {
             </DialogHeader>
             <UserForm 
               onSubmit={handleAddUser} 
-              isLoading={addUserMutation.isPending} 
+              isLoading={addUserMutation.isPending}
+              isEditing={false} 
             />
           </DialogContent>
         </Dialog>
@@ -191,6 +202,7 @@ export default function UsersPage() {
               onEdit={openEditDialog} 
               onDelete={handleDeleteUser}
               isLoadingDeleteForId={deleteUserMutation.isPending ? deleteUserMutation.variables : null}
+              currentUserId={firebaseUser?.uid}
             />
           )}
         </CardContent>

@@ -3,7 +3,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { UserSchema, type User, UserRoleSchema } from "@/lib/schemas/user";
+import { UserSchema, type User, UserRoleSchema, CreateUserFormSchema, type CreateUserFormData } from "@/lib/schemas/user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,30 +17,32 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Loader2 } from "lucide-react";
+import type { z } from 'zod';
+
 
 interface UserFormProps {
-  onSubmit: (data: User) => Promise<void>;
+  onSubmit: (data: User | CreateUserFormData) => Promise<void>; // Data can be User or CreateUserFormData
   defaultValues?: Partial<User>;
   isEditing?: boolean;
   isLoading?: boolean;
 }
 
 export function UserForm({ onSubmit, defaultValues, isEditing = false, isLoading = false }: UserFormProps) {
-  const form = useForm<User>({
-    resolver: zodResolver(UserSchema),
+  const schemaToUse = isEditing ? UserSchema : CreateUserFormSchema;
+
+  const form = useForm<User | CreateUserFormData>({ // Union type for form data
+    resolver: zodResolver(schemaToUse as z.ZodType<User | CreateUserFormData, any, any>),
     defaultValues: defaultValues || {
       name: "",
       email: "",
-      role: "user", // Default role for new users
-      password: "",
-      confirmPassword: "",
+      role: "user",
+      password: "", // Will be validated by CreateUserFormSchema if !isEditing
+      confirmPassword: "", // Will be validated by CreateUserFormSchema if !isEditing
     },
   });
 
-  const handleFormSubmit = async (data: User) => {
+  const handleFormSubmit = async (data: User | CreateUserFormData) => {
     await onSubmit(data);
-    // Reset form only if it's for adding and not currently loading
-    // For editing, we typically keep the form filled.
     if (!isEditing && !isLoading) {
         form.reset({ name: "", email: "", role: "user", password: "", confirmPassword: "" });
     }
@@ -76,7 +78,7 @@ export function UserForm({ onSubmit, defaultValues, isEditing = false, isLoading
             </FormItem>
           )}
         />
-        {/* Password fields are shown if NOT editing OR if it's the registration form (which is also !isEditing) */}
+        
         {!isEditing && (
           <>
             <FormField
@@ -107,7 +109,8 @@ export function UserForm({ onSubmit, defaultValues, isEditing = false, isLoading
             />
           </>
         )}
-        {/* Role field is always shown, but could be disabled for non-admins if UserForm is used by users to edit their own profile */}
+        
+
         <FormField
           control={form.control}
           name="role"
@@ -116,10 +119,7 @@ export function UserForm({ onSubmit, defaultValues, isEditing = false, isLoading
               <FormLabel>Função</FormLabel>
               <Select 
                 onValueChange={field.onChange} 
-                defaultValue={field.value}
-                // Disable role change if 'isEditing' and not admin, or if it's self-registration form (non-admin)
-                // For simplicity, assuming admin role allows changing roles during edit, 
-                // and self-registration always defaults to 'user' (UserForm doesn't expose role field for self-reg)
+                defaultValue={field.value as UserRole} // Cast to UserRole
               >
                 <FormControl>
                   <SelectTrigger>

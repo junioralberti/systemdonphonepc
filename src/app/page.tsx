@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { UserForm } from '@/components/users/user-form';
 import { addUser, getUserById } from '@/services/userService';
-import type { User } from '@/lib/schemas/user';
+import type { User, CreateUserFormData } from '@/lib/schemas/user'; // Import CreateUserFormData
 import { useToast } from '@/hooks/use-toast';
 import { useMutation } from '@tanstack/react-query';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -22,7 +22,7 @@ import { auth } from '@/lib/firebase';
 export default function LoginPage() {
   const [email, setEmail] = useState('teste@donphone.com');
   const [password, setPassword] = useState('123456');
-  const { login, performMockLogin } = useAuth(); // Added performMockLogin
+  const { login, performMockLogin } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -33,15 +33,12 @@ export default function LoginPage() {
     setError(null);
     setIsLoggingIn(true);
 
-    // Check for mocked admin user first
     if (email === 'teste@donphone.com' && password === '123456') {
       performMockLogin('admin');
-      // Navigation to /dashboard will be handled by AuthContext's useEffect
       setIsLoggingIn(false);
       return;
     }
 
-    // Proceed with Firebase authentication for other users
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
@@ -50,7 +47,6 @@ export default function LoginPage() {
         const userDataFromFirestore = await getUserById(firebaseUser.uid);
         if (userDataFromFirestore && userDataFromFirestore.role) {
           login(userDataFromFirestore.role as 'admin' | 'user', firebaseUser);
-          // Navigation to /dashboard will be handled by AuthContext's useEffect
         } else {
           setError('Não foi possível determinar a função do usuário. Contate o suporte.');
           await auth.signOut();
@@ -71,7 +67,7 @@ export default function LoginPage() {
   };
 
   const addUserMutation = useMutation({
-    mutationFn: (formData: User) => addUser(formData),
+    mutationFn: (formData: CreateUserFormData | User) => addUser(formData as User), // addUser expects User
     onSuccess: async (uid, formData) => {
       toast({
         title: "Cadastro Realizado!",
@@ -79,7 +75,6 @@ export default function LoginPage() {
         variant: "default"
       });
       setIsRegisterDialogOpen(false);
-      // Do not log in automatically after registration. User must use the login form.
     },
     onError: (error: Error) => {
       toast({
@@ -90,7 +85,8 @@ export default function LoginPage() {
     },
   });
 
-  const handleRegisterUser = async (formData: User) => {
+  const handleRegisterUser = async (formData: CreateUserFormData | User) => {
+    // formData here will be CreateUserFormData from the form which is compatible with User type for addUser
     await addUserMutation.mutateAsync(formData);
   };
 
