@@ -12,17 +12,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { UserForm } from '@/components/users/user-form';
-import { addUser, getUserById } from '@/services/userService'; // Import getUserById
-import type { User, UserRole } from '@/lib/schemas/user';
+import { addUser, getUserById } from '@/services/userService';
+import type { User } from '@/lib/schemas/user';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation } from '@tanstack/react-query';
-import { signInWithEmailAndPassword } from 'firebase/auth'; // Import Firebase Auth method
-import { auth } from '@/lib/firebase'; // Import Firebase auth instance
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('teste@donphone.com'); // Default to test user
-  const [password, setPassword] = useState('123456'); // Default to test password
-  const { login } = useAuth();
+  const [email, setEmail] = useState('teste@donphone.com');
+  const [password, setPassword] = useState('123456');
+  const { login, performMockLogin } = useAuth(); // Added performMockLogin
   const [error, setError] = useState<string | null>(null);
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -33,19 +33,26 @@ export default function LoginPage() {
     setError(null);
     setIsLoggingIn(true);
 
+    // Check for mocked admin user first
+    if (email === 'teste@donphone.com' && password === '123456') {
+      performMockLogin('admin');
+      // Navigation to /dashboard will be handled by AuthContext's useEffect
+      setIsLoggingIn(false);
+      return;
+    }
+
+    // Proceed with Firebase authentication for other users
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
       if (firebaseUser && firebaseUser.uid) {
-        // Fetch user data from Firestore to get the role
         const userDataFromFirestore = await getUserById(firebaseUser.uid);
         if (userDataFromFirestore && userDataFromFirestore.role) {
-          login(userDataFromFirestore.role as 'admin' | 'user');
+          login(userDataFromFirestore.role as 'admin' | 'user', firebaseUser);
+          // Navigation to /dashboard will be handled by AuthContext's useEffect
         } else {
-          // This case should ideally not happen if user is in Auth and Firestore is synced
           setError('Não foi possível determinar a função do usuário. Contate o suporte.');
-          // Optionally, sign out the user from Firebase Auth if role is critical
           await auth.signOut();
         }
       } else {
@@ -64,16 +71,15 @@ export default function LoginPage() {
   };
 
   const addUserMutation = useMutation({
-    mutationFn: (formData: User) => addUser(formData), // addUser now handles Auth and Firestore
-    onSuccess: async (uid, formData) => { // addUser now returns uid
+    mutationFn: (formData: User) => addUser(formData),
+    onSuccess: async (uid, formData) => {
       toast({
         title: "Cadastro Realizado!",
         description: "Seu usuário foi criado com sucesso. Por favor, faça login.",
         variant: "default"
       });
       setIsRegisterDialogOpen(false);
-      // Do not attempt to log in immediately as per previous request.
-      // User needs to fill credentials and click "Entrar".
+      // Do not log in automatically after registration. User must use the login form.
     },
     onError: (error: Error) => {
       toast({
@@ -85,7 +91,6 @@ export default function LoginPage() {
   });
 
   const handleRegisterUser = async (formData: User) => {
-    // formData comes from UserForm, includes password. Role defaults to 'user' in UserForm.
     await addUserMutation.mutateAsync(formData);
   };
 
