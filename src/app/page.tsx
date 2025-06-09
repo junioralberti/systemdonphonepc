@@ -10,73 +10,90 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { UserForm } from '@/components/users/user-form';
-import { addUser } from '@/services/userService';
+import { addUser, getUserById } from '@/services/userService'; // Import getUserById
 import type { User, UserRole } from '@/lib/schemas/user';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation } from '@tanstack/react-query';
-
-// Definindo o tipo para os dados que serão realmente salvos no Firestore, omitindo a senha e campos de controle.
-type UserDataToSave = Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'password' | 'confirmPassword'>;
-
-// Tipo para usuários mockados armazenados no localStorage (incluindo a senha para o mock)
-interface MockStoredUser extends UserDataToSave {
-  password?: string; // Senha em texto plano, APENAS PARA MOCK
-}
+import { signInWithEmailAndPassword } from 'firebase/auth'; // Import Firebase Auth method
+import { auth } from '@/lib/firebase'; // Import Firebase auth instance
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('teste@donphone.com');
-  const [password, setPassword] = useState('Bettina03*');
+  const [email, setEmail] = useState(''); // Default to empty
+  const [password, setPassword] = useState(''); // Default to empty
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsLoggingIn(true);
 
-    if (email === 'teste@donphone.com' && password === 'Bettina03*') {
-      login('admin');
-    } else {
-      // Verificar usuários mockados no localStorage
-      const storedMockUsersString = localStorage.getItem('mock_users');
-      const mockUsers: MockStoredUser[] = storedMockUsersString ? JSON.parse(storedMockUsersString) : [];
-      
-      const matchedUser = mockUsers.find(u => u.email === email && u.password === password);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
 
-      if (matchedUser) {
-        login(matchedUser.role as 'admin' | 'user' || 'user'); // Usa a role armazenada ou 'user'
+      if (firebaseUser && firebaseUser.uid) {
+        // Fetch user data from Firestore to get the role
+        const userDataFromFirestore = await getUserById(firebaseUser.uid);
+        if (userDataFromFirestore && userDataFromFirestore.role) {
+          login(userDataFromFirestore.role as 'admin' | 'user');
+        } else {
+          // This case should ideally not happen if user is in Auth and Firestore is synced
+          setError('Não foi possível determinar a função do usuário. Contate o suporte.');
+          // Optionally, sign out the user from Firebase Auth if role is critical
+          await auth.signOut();
+        }
       } else {
-        setError('Credenciais inválidas. Por favor, tente novamente.');
+        setError('Usuário não encontrado ou erro inesperado.');
       }
+    } catch (firebaseError: any) {
+      console.error("Firebase Login Error:", firebaseError);
+      if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/invalid-credential') {
+        setError('E-mail ou senha inválidos.');
+      } else {
+        setError('Ocorreu um erro ao tentar fazer login. Tente novamente.');
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
   const addUserMutation = useMutation({
-    mutationFn: (userData: { firestoreData: UserDataToSave, formData: User }) => addUser(userData.firestoreData),
-    onSuccess: (docId, variables) => { // O segundo argumento 'variables' contém o que foi passado para mutateAsync
-      const { firestoreData, formData } = variables;
+    mutationFn: (formData: User) => addUser(formData), // addUser now handles Auth and Firestore
+    onSuccess: async (uid, formData) => { // addUser now returns uid
       toast({
         title: "Cadastro Realizado!",
-        description: "Seu usuário foi criado com sucesso. Agora você pode fazer login.",
+        description: "Seu usuário foi criado com sucesso. Tentando fazer login...",
         variant: "default"
       });
-
-      // Armazenar no localStorage para o mock de login
-      const storedMockUsersString = localStorage.getItem('mock_users');
-      const mockUsers: MockStoredUser[] = storedMockUsersString ? JSON.parse(storedMockUsersString) : [];
-      
-      mockUsers.push({ 
-        email: firestoreData.email, 
-        password: formData.password, // Usar a senha do formulário original
-        name: firestoreData.name,
-        role: firestoreData.role 
-      });
-      localStorage.setItem('mock_users', JSON.stringify(mockUsers));
-      
       setIsRegisterDialogOpen(false);
+
+      // Attempt to log in immediately
+      setError(null);
+      setIsLoggingIn(true);
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password!);
+        const firebaseUser = userCredential.user;
+        if (firebaseUser && firebaseUser.uid) {
+          const userDataFromFirestore = await getUserById(firebaseUser.uid);
+          if (userDataFromFirestore && userDataFromFirestore.role) {
+            login(userDataFromFirestore.role as 'admin' | 'user');
+          } else {
+            setError('Login automático falhou: não foi possível obter dados do usuário.');
+            await auth.signOut();
+          }
+        }
+      } catch (loginError: any) {
+        console.error("Auto-login after registration error:", loginError);
+        setError("Cadastro realizado, mas o login automático falhou. Por favor, tente fazer login manualmente.");
+      } finally {
+        setIsLoggingIn(false);
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -88,15 +105,8 @@ export default function LoginPage() {
   });
 
   const handleRegisterUser = async (formData: User) => {
-    // 'formData' é o que vem do UserForm, incluindo password e confirmPassword
-    const { id, createdAt, updatedAt, password, confirmPassword, ...userDataToSave } = formData;
-    
-    // Para novos registros via este formulário, a role será 'user' por padrão,
-    // a menos que o UserForm permita alterá-la (o que não é o caso para o cadastro público).
-    const firestoreData: UserDataToSave = { ...userDataToSave, role: formData.role || 'user' };
-    
-    // Passamos ambos: dados para o Firestore e dados do formulário (para pegar a senha para o localStorage)
-    await addUserMutation.mutateAsync({ firestoreData, formData });
+    // formData comes from UserForm, includes password. Role defaults to 'user' in UserForm.
+    await addUserMutation.mutateAsync(formData);
   };
 
 
@@ -108,8 +118,8 @@ export default function LoginPage() {
             <Image
               src="/donphone-logo.png"
               alt="DonPhone Logo"
-              width={48} 
-              height={48}
+              width={64} 
+              height={64}
               data-ai-hint="company logo"
               className="mx-auto"
             />
@@ -150,7 +160,8 @@ export default function LoginPage() {
                 className="text-base"
               />
             </div>
-            <Button type="submit" className="w-full text-base">
+            <Button type="submit" className="w-full text-base" disabled={isLoggingIn || addUserMutation.isPending}>
+              {isLoggingIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Entrar
             </Button>
           </form>
@@ -160,6 +171,7 @@ export default function LoginPage() {
               type="button"
               onClick={() => setIsRegisterDialogOpen(true)}
               className="text-sm px-0"
+              disabled={isLoggingIn || addUserMutation.isPending}
             >
               Cadastrar Novo Usuário
             </Button>
@@ -177,14 +189,12 @@ export default function LoginPage() {
           <DialogHeader>
             <DialogTitle>Cadastrar Novo Usuário</DialogTitle>
             <DialogDescription>
-              Preencha seus dados para criar uma conta. Após o cadastro, faça login normalmente.
+              Preencha seus dados para criar uma conta. Após o cadastro, você será logado automaticamente.
             </DialogDescription>
           </DialogHeader>
           <UserForm
             onSubmit={handleRegisterUser}
             isLoading={addUserMutation.isPending}
-            // Não passamos 'isEditing' pois este é um formulário de adição
-            // O UserForm padrão terá o campo role 'user' por default.
           />
         </DialogContent>
       </Dialog>
