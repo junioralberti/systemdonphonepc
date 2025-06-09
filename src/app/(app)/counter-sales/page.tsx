@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as TableSummaryFooter } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ScanLine, PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User, Loader2, PackagePlus } from "lucide-react";
+import { PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User, Loader2, PackagePlus, PackageSearch } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
 import { addSale, type SaleInput, type CartItemInput } from "@/services/salesService"; 
-import { getProductBySku, addProduct } from "@/services/productService"; 
+import { getProducts, addProduct } from "@/services/productService"; 
 import type { Product } from "@/lib/schemas/product";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ProductForm } from "@/components/products/product-form";
 
@@ -28,15 +28,20 @@ type PaymentMethod = "Dinheiro" | "Cartão de Crédito" | "Cartão de Débito" |
 const paymentMethods: PaymentMethod[] = ["Dinheiro", "Cartão de Crédito", "Cartão de Débito", "PIX"];
 
 export default function CounterSalesPage() {
-  const [skuInput, setSkuInput] = useState("");
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [clientNameForSale, setClientNameForSale] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [establishmentDataForPrint, setEstablishmentDataForPrint] = useState<EstablishmentSettings | null>(null);
-  const [isLookingUpSku, setIsLookingUpSku] = useState(false);
+  const [isProcessingCartAction, setIsProcessingCartAction] = useState(false); // Renamed from isLookingUpSku
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
+  const [selectedProductSkuForCart, setSelectedProductSkuForCart] = useState<string>("");
+
+  const { data: products, isLoading: isLoadingProducts, error: productsError } = useQuery<Product[], Error>({
+    queryKey: ["products"],
+    queryFn: getProducts,
+  });
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -45,7 +50,6 @@ export default function CounterSalesPage() {
             setEstablishmentDataForPrint(settings);
         } catch (error) {
             console.error("Failed to fetch establishment settings for print:", error);
-            // Fallback is handled directly in the print function
         }
     };
     fetchSettings();
@@ -85,7 +89,7 @@ export default function CounterSalesPage() {
         description: `${submittedProductData.name} (SKU: ${submittedProductData.sku}) cadastrado com sucesso.`,
       });
       setIsAddProductDialogOpen(false);
-      setSkuInput(submittedProductData.sku); 
+      setSelectedProductSkuForCart(submittedProductData.sku); 
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao Adicionar Produto", description: error.message, variant: "destructive" });
@@ -94,15 +98,21 @@ export default function CounterSalesPage() {
 
 
   const handleAddItem = async () => {
-    if (!skuInput.trim()) {
-      toast({ title: "Entrada Inválida", description: "Por favor, insira ou escaneie um SKU.", variant: "destructive" });
+    if (!selectedProductSkuForCart) {
+      toast({ title: "Nenhum Produto Selecionado", description: "Por favor, selecione um produto da lista.", variant: "destructive" });
       return;
     }
-    setIsLookingUpSku(true);
-    const productSku = skuInput.trim().toUpperCase();
-    try {
-      const product = await getProductBySku(productSku);
+    setIsProcessingCartAction(true);
+    
+    const product = products?.find(p => p.sku === selectedProductSkuForCart);
 
+    if (!product) {
+      toast({ title: "Produto Não Encontrado", description: "O produto selecionado não foi encontrado. Tente atualizar a lista de produtos.", variant: "destructive" });
+      setIsProcessingCartAction(false);
+      return;
+    }
+
+    try {
       if (product && product.id) {
         const existingItemIndex = cartItems.findIndex(item => item.sku === product.sku);
 
@@ -119,16 +129,17 @@ export default function CounterSalesPage() {
             quantity: 1 
           }]);
         }
-        setSkuInput("");
+        setSelectedProductSkuForCart(""); // Reset selection
         toast({ title: "Item Adicionado", description: `${product.name} adicionado ao carrinho.` });
       } else {
-        toast({ title: "Produto Não Encontrado", description: `Nenhum produto encontrado com o SKU: ${productSku}. Cadastre-o se necessário.`, variant: "destructive" });
+         // This case should be rare if product is coming from the fetched list
+        toast({ title: "Erro ao Adicionar Produto", description: "Não foi possível adicionar o produto selecionado.", variant: "destructive" });
       }
     } catch (error) {
-      console.error("Error fetching product by SKU:", error);
-      toast({ title: "Erro ao Buscar Produto", description: "Ocorreu um erro ao buscar o produto.", variant: "destructive" });
+      console.error("Error adding item to cart:", error);
+      toast({ title: "Erro ao Adicionar Item", description: "Ocorreu um erro ao adicionar o item ao carrinho.", variant: "destructive" });
     } finally {
-      setIsLookingUpSku(false);
+      setIsProcessingCartAction(false);
     }
   };
 
@@ -151,7 +162,7 @@ export default function CounterSalesPage() {
 
   const resetSaleForm = () => {
     setCartItems([]);
-    setSkuInput("");
+    setSelectedProductSkuForCart("");
     setClientNameForSale("");
     setPaymentMethod(undefined);
   };
@@ -280,6 +291,8 @@ export default function CounterSalesPage() {
     await addProductMutationFromDialog.mutateAsync(productData);
   };
 
+  const selectedProductName = products?.find(p => p.sku === selectedProductSkuForCart)?.name || "Selecione um produto";
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -321,26 +334,51 @@ export default function CounterSalesPage() {
           </div>
 
           <div className="flex flex-wrap gap-2 items-end">
-            <div className="flex-grow min-w-[200px]">
-              <Label htmlFor="skuInput">SKU do Produto</Label>
-              <Input 
-                id="skuInput"
-                placeholder="Escanear ou inserir SKU" 
-                value={skuInput}
-                onChange={(e) => setSkuInput(e.target.value)}
-                onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(); } }}
-                className="text-base"
-                disabled={isLookingUpSku || addSaleMutation.isPending || addProductMutationFromDialog.isPending}
-              />
+            <div className="flex-grow min-w-[250px] sm:min-w-[300px]">
+              <Label htmlFor="productSelect">Produto</Label>
+              {isLoadingProducts ? (
+                 <Button variant="outline" className="w-full justify-start text-muted-foreground" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando produtos...
+                 </Button>
+              ) : productsError ? (
+                <Button variant="outline" className="w-full justify-start text-destructive" disabled>
+                    Erro ao carregar produtos
+                </Button>
+              ) : (
+                <Select 
+                    value={selectedProductSkuForCart} 
+                    onValueChange={(value) => setSelectedProductSkuForCart(value)}
+                    disabled={isProcessingCartAction || addSaleMutation.isPending || addProductMutationFromDialog.isPending}
+                >
+                    <SelectTrigger id="productSelect" className="text-base">
+                    <SelectValue placeholder="Selecione um produto" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="max-h-72">
+                    {products && products.length > 0 ? (
+                        products.map(product => (
+                        <SelectItem key={product.sku} value={product.sku} className="text-sm">
+                            <div>
+                                <span className="font-medium">{product.name}</span> (SKU: {product.sku})
+                                <span className="block text-xs text-muted-foreground">
+                                    Preço: R$ {product.price.toFixed(2)} | Estoque: {product.stock}
+                                </span>
+                            </div>
+                        </SelectItem>
+                        ))
+                    ) : (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                            Nenhum produto cadastrado.
+                        </div>
+                    )}
+                    </SelectContent>
+                </Select>
+              )}
             </div>
-            <Button variant="outline" size="icon" onClick={() => alert("Funcionalidade de scanner pendente")} aria-label="Escanear produto" className="h-10 w-10">
-              <ScanLine className="h-5 w-5"/>
-            </Button>
-            <Button onClick={handleAddItem} className="h-10" disabled={isLookingUpSku || addSaleMutation.isPending || addProductMutationFromDialog.isPending}>
-              {isLookingUpSku ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />} 
+            <Button onClick={handleAddItem} className="h-10" disabled={isProcessingCartAction || !selectedProductSkuForCart || addSaleMutation.isPending || addProductMutationFromDialog.isPending}>
+              {isProcessingCartAction ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />} 
               Adicionar Item
             </Button>
-            <Button variant="secondary" onClick={() => setIsAddProductDialogOpen(true)} className="h-10" disabled={isLookingUpSku || addSaleMutation.isPending || addProductMutationFromDialog.isPending}>
+            <Button variant="secondary" onClick={() => setIsAddProductDialogOpen(true)} className="h-10" disabled={isProcessingCartAction || addSaleMutation.isPending || addProductMutationFromDialog.isPending}>
               {addProductMutationFromDialog.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackagePlus className="mr-2 h-4 w-4" />}
               Cadastrar Produto
             </Button>
@@ -350,7 +388,7 @@ export default function CounterSalesPage() {
             <div className="text-center text-muted-foreground py-8">
               <ShoppingCart className="mx-auto h-12 w-12 mb-2" />
               <p>Nenhum item no carrinho.</p>
-              <p className="text-sm">Adicione produtos usando o campo SKU acima.</p>
+              <p className="text-sm">Selecione um produto e clique em "Adicionar Item".</p>
             </div>
           ) : (
             <div className="rounded-md border">
@@ -449,3 +487,5 @@ export default function CounterSalesPage() {
     </div>
   );
 }
+
+    
