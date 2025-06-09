@@ -20,8 +20,8 @@ import { signInWithEmailAndPassword } from 'firebase/auth'; // Import Firebase A
 import { auth } from '@/lib/firebase'; // Import Firebase auth instance
 
 export default function LoginPage() {
-  const [email, setEmail] = useState(''); // Default to empty
-  const [password, setPassword] = useState(''); // Default to empty
+  const [email, setEmail] = useState('teste@donphone.com'); // Default to test user
+  const [password, setPassword] = useState('123456'); // Default to test password
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
@@ -53,7 +53,7 @@ export default function LoginPage() {
       }
     } catch (firebaseError: any) {
       console.error("Firebase Login Error:", firebaseError);
-      if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/invalid-credential') {
+      if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/invalid-credential' || firebaseError.code === 'auth/invalid-email') {
         setError('E-mail ou senha inválidos.');
       } else {
         setError('Ocorreu um erro ao tentar fazer login. Tente novamente.');
@@ -68,32 +68,12 @@ export default function LoginPage() {
     onSuccess: async (uid, formData) => { // addUser now returns uid
       toast({
         title: "Cadastro Realizado!",
-        description: "Seu usuário foi criado com sucesso. Tentando fazer login...",
+        description: "Seu usuário foi criado com sucesso. Por favor, faça login.",
         variant: "default"
       });
       setIsRegisterDialogOpen(false);
-
-      // Attempt to log in immediately
-      setError(null);
-      setIsLoggingIn(true);
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password!);
-        const firebaseUser = userCredential.user;
-        if (firebaseUser && firebaseUser.uid) {
-          const userDataFromFirestore = await getUserById(firebaseUser.uid);
-          if (userDataFromFirestore && userDataFromFirestore.role) {
-            login(userDataFromFirestore.role as 'admin' | 'user');
-          } else {
-            setError('Login automático falhou: não foi possível obter dados do usuário.');
-            await auth.signOut();
-          }
-        }
-      } catch (loginError: any) {
-        console.error("Auto-login after registration error:", loginError);
-        setError("Cadastro realizado, mas o login automático falhou. Por favor, tente fazer login manualmente.");
-      } finally {
-        setIsLoggingIn(false);
-      }
+      // Do not attempt to log in immediately as per previous request.
+      // User needs to fill credentials and click "Entrar".
     },
     onError: (error: Error) => {
       toast({
@@ -189,7 +169,7 @@ export default function LoginPage() {
           <DialogHeader>
             <DialogTitle>Cadastrar Novo Usuário</DialogTitle>
             <DialogDescription>
-              Preencha seus dados para criar uma conta. Após o cadastro, você será logado automaticamente.
+              Preencha seus dados para criar uma conta. Após o cadastro, você precisará fazer login.
             </DialogDescription>
           </DialogHeader>
           <UserForm
