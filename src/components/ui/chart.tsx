@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -141,10 +142,13 @@ const ChartTooltipContent = React.forwardRef<
       const [item] = payload
       const key = `${labelKey || item.dataKey || item.name || "value"}`
       const itemConfig = getPayloadConfigFromPayload(config, item, key)
-      const value =
-        !labelKey && typeof label === "string"
-          ? config[label as keyof typeof config]?.label || label
-          : itemConfig?.label
+      
+      // Attempt to get label from item's payload first if it's a descriptive key (like 'name' for category)
+      let value = item?.payload?.[key] || 
+                  (!labelKey && typeof label === "string"
+                    ? config[label as keyof typeof config]?.label || label
+                    : itemConfig?.label);
+
 
       if (labelFormatter) {
         return (
@@ -238,9 +242,9 @@ const ChartTooltipContent = React.forwardRef<
                           {itemConfig?.label || item.name}
                         </span>
                       </div>
-                      {item.value && (
+                      {item.value !== undefined && item.value !== null && (
                         <span className="font-mono font-medium tabular-nums text-foreground">
-                          {item.value.toLocaleString()}
+                          {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
                         </span>
                       )}
                     </div>
@@ -363,3 +367,40 @@ export {
   ChartLegendContent,
   ChartStyle,
 }
+
+// Re-export all RechartsPrimitive except those already wrapped
+export {
+    Area,
+    AreaChart,
+    Bar,
+    BarChart,
+    Cell as RechartsCell, // Renamed to avoid conflict if you have a Cell component
+    CartesianGrid,
+    Label as RechartsLabel,
+    LabelList,
+    Legend as RechartsLegend,
+    Line,
+    LineChart,
+    Pie,
+    PieChart,
+    PolarAngleAxis,
+    PolarGrid,
+    PolarRadiusAxis,
+    RadialBar,
+    RadialBarChart,
+    ReferenceLine,
+    ResponsiveContainer,
+    Scatter,
+    ScatterChart,
+    Sector as RechartsSector,
+    Tooltip as RechartsTooltip, // This is the original Tooltip from Recharts
+    Treemap,
+    XAxis,
+    YAxis,
+    ZAxis,
+} from "recharts";
+
+// Export specific types from Recharts if needed for external use
+export type { TooltipProps as RechartsTooltipProps } from "recharts";
+
+

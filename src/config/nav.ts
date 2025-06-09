@@ -12,6 +12,7 @@ import {
   BrainCircuit, // Or Sparkles
   LogOut,
   Settings,
+  Landmark, // Added for Financeiro
   // Calculator icon is kept for the header, but not for a nav item itself
 } from 'lucide-react';
 
@@ -31,6 +32,11 @@ export const navItems: NavItem[] = [
     title: 'Painel',
     href: '/dashboard',
     icon: LayoutDashboard,
+  },
+  {
+    title: 'Financeiro', // New Finance Section
+    href: '/financeiro',
+    icon: Landmark,
   },
   {
     title: 'Clientes',
@@ -81,3 +87,4 @@ export const navItems: NavItem[] = [
     isBottom: true,
   },
 ];
+
