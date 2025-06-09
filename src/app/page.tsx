@@ -9,17 +9,21 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { AlertTriangle, Loader2, UserPlus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AlertTriangle } from "lucide-react";
 import { UserForm } from '@/components/users/user-form';
 import { addUser } from '@/services/userService';
-import type { User } from '@/lib/schemas/user';
+import type { User, UserRole } from '@/lib/schemas/user';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation } from '@tanstack/react-query';
 
-// Definindo o tipo para os dados que serão realmente salvos, omitindo a senha e campos de controle.
+// Definindo o tipo para os dados que serão realmente salvos no Firestore, omitindo a senha e campos de controle.
 type UserDataToSave = Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'password' | 'confirmPassword'>;
 
+// Tipo para usuários mockados armazenados no localStorage (incluindo a senha para o mock)
+interface MockStoredUser extends UserDataToSave {
+  password?: string; // Senha em texto plano, APENAS PARA MOCK
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('teste@donphone.com');
@@ -31,39 +35,68 @@ export default function LoginPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null); 
+    setError(null);
 
     if (email === 'teste@donphone.com' && password === 'Bettina03*') {
-      login('admin'); 
+      login('admin');
     } else {
-      setError('Credenciais inválidas. Por favor, tente novamente.');
+      // Verificar usuários mockados no localStorage
+      const storedMockUsersString = localStorage.getItem('mock_users');
+      const mockUsers: MockStoredUser[] = storedMockUsersString ? JSON.parse(storedMockUsersString) : [];
+      
+      const matchedUser = mockUsers.find(u => u.email === email && u.password === password);
+
+      if (matchedUser) {
+        login(matchedUser.role as 'admin' | 'user' || 'user'); // Usa a role armazenada ou 'user'
+      } else {
+        setError('Credenciais inválidas. Por favor, tente novamente.');
+      }
     }
   };
 
   const addUserMutation = useMutation({
-    mutationFn: (newUserData: UserDataToSave) => addUser(newUserData),
-    onSuccess: () => {
-      toast({ 
-        title: "Cadastro Realizado!", 
+    mutationFn: (userData: { firestoreData: UserDataToSave, formData: User }) => addUser(userData.firestoreData),
+    onSuccess: (docId, variables) => { // O segundo argumento 'variables' contém o que foi passado para mutateAsync
+      const { firestoreData, formData } = variables;
+      toast({
+        title: "Cadastro Realizado!",
         description: "Seu usuário foi criado com sucesso. Agora você pode fazer login.",
-        variant: "default" 
+        variant: "default"
       });
+
+      // Armazenar no localStorage para o mock de login
+      const storedMockUsersString = localStorage.getItem('mock_users');
+      const mockUsers: MockStoredUser[] = storedMockUsersString ? JSON.parse(storedMockUsersString) : [];
+      
+      mockUsers.push({ 
+        email: firestoreData.email, 
+        password: formData.password, // Usar a senha do formulário original
+        name: firestoreData.name,
+        role: firestoreData.role 
+      });
+      localStorage.setItem('mock_users', JSON.stringify(mockUsers));
+      
       setIsRegisterDialogOpen(false);
     },
     onError: (error: Error) => {
-      toast({ 
-        title: "Erro no Cadastro", 
-        description: `Não foi possível criar o usuário: ${error.message}`, 
-        variant: "destructive" 
+      toast({
+        title: "Erro no Cadastro",
+        description: `Não foi possível criar o usuário: ${error.message}`,
+        variant: "destructive"
       });
     },
   });
 
-  const handleRegisterUser = async (data: User) => {
-    const { id, createdAt, updatedAt, password, confirmPassword, ...userDataToSave } = data;
-    // For new registrations, always set role to 'user' unless explicitly changed by an admin elsewhere
-    const userDataWithRole = { ...userDataToSave, role: data.role || 'user' } as UserDataToSave;
-    await addUserMutation.mutateAsync(userDataWithRole);
+  const handleRegisterUser = async (formData: User) => {
+    // 'formData' é o que vem do UserForm, incluindo password e confirmPassword
+    const { id, createdAt, updatedAt, password, confirmPassword, ...userDataToSave } = formData;
+    
+    // Para novos registros via este formulário, a role será 'user' por padrão,
+    // a menos que o UserForm permita alterá-la (o que não é o caso para o cadastro público).
+    const firestoreData: UserDataToSave = { ...userDataToSave, role: formData.role || 'user' };
+    
+    // Passamos ambos: dados para o Firestore e dados do formulário (para pegar a senha para o localStorage)
+    await addUserMutation.mutateAsync({ firestoreData, formData });
   };
 
 
@@ -72,11 +105,11 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm shadow-xl">
         <CardHeader className="items-center text-center">
           <div className="mb-4">
-            <Image 
-              src="/donphone-logo.png" 
-              alt="DonPhone Logo" 
-              width={64} // Ajustado para melhor visualização do logo se for o caso
-              height={64}
+            <Image
+              src="/donphone-logo.png"
+              alt="DonPhone Logo"
+              width={48} 
+              height={48}
               data-ai-hint="company logo"
               className="mx-auto"
             />
@@ -122,9 +155,9 @@ export default function LoginPage() {
             </Button>
           </form>
           <div className="mt-4 text-center">
-            <Button 
-              variant="link" 
-              type="button" 
+            <Button
+              variant="link"
+              type="button"
               onClick={() => setIsRegisterDialogOpen(true)}
               className="text-sm px-0"
             >
@@ -147,18 +180,12 @@ export default function LoginPage() {
               Preencha seus dados para criar uma conta. Após o cadastro, faça login normalmente.
             </DialogDescription>
           </DialogHeader>
-          <UserForm 
+          <UserForm
             onSubmit={handleRegisterUser}
             isLoading={addUserMutation.isPending}
             // Não passamos 'isEditing' pois este é um formulário de adição
+            // O UserForm padrão terá o campo role 'user' por default.
           />
-          {/* O UserForm já tem seu próprio botão de submit. O DialogFooter aqui é opcional ou pode ter apenas um DialogClose.
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">Cancelar</Button>
-            </DialogClose>
-          </DialogFooter> 
-          */}
         </DialogContent>
       </Dialog>
     </div>
