@@ -7,6 +7,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { onAuthStateChanged, signOut, type User as FirebaseUserType } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { getUserById } from '@/services/userService';
+import { Loader2 } from 'lucide-react'; // Added import for Loader2
 
 interface AuthContextType {
   isAuthenticated: boolean;
