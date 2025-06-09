@@ -12,6 +12,7 @@ import {
   Timestamp,
   type DocumentData,
   type QueryDocumentSnapshot,
+  where
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -82,8 +83,8 @@ const serviceOrderFromDoc = (docSnap: QueryDocumentSnapshot<DocumentData>): Serv
     serviceManualValue: data.serviceManualValue || 0,
     additionalSoldProducts: data.additionalSoldProducts || [],
     grandTotalValue: data.grandTotalValue || 0,
-    openingDate: (data.openingDate as Timestamp)?.toDate() || new Date(),
-    updatedAt: (data.updatedAt as Timestamp)?.toDate(),
+    openingDate: (data.openingDate instanceof Timestamp) ? data.openingDate.toDate() : (data.openingDate || new Date()),
+    updatedAt: (data.updatedAt instanceof Timestamp) ? data.updatedAt.toDate() : data.updatedAt,
   };
 };
 
@@ -128,11 +129,48 @@ export const updateServiceOrder = async (id: string, orderData: Partial<Omit<Ser
 
 export const deleteServiceOrder = async (id: string): Promise<string> => {
   const orderRef = doc(db, SERVICE_ORDERS_COLLECTION, id);
-  // Para consistência com o callback da mutação que espera o ID da OS (que no caso é o osNumber)
-  // Precisamos pegar o osNumber ANTES de deletar, ou apenas retornar o ID do documento,
-  // e ajustar o componente para esperar o ID do documento.
-  // Por ora, vamos retornar o ID do documento, pois o componente usa o ID para identificar a OS a ser excluída.
-  // A notificação de toast pode usar o os.osNumber que já tem no lado do cliente.
   await deleteDoc(orderRef);
-  return id; // Retorna o ID do documento Firestore
+  return id; 
+};
+
+export const getServiceOrdersByDateRangeAndStatus = async (
+  startDate?: Date, 
+  endDate?: Date, 
+  status?: ServiceOrderStatus | "Todos"
+): Promise<ServiceOrder[]> => {
+  let conditions = [];
+  if (startDate) {
+    conditions.push(where('openingDate', '>=', Timestamp.fromDate(startDate)));
+  }
+  if (endDate) {
+    const endOfDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999);
+    conditions.push(where('openingDate', '<=', Timestamp.fromDate(endOfDay)));
+  }
+  if (status && status !== "Todos") {
+    conditions.push(where('status', '==', status));
+  }
+
+  const q = query(
+    collection(db, SERVICE_ORDERS_COLLECTION),
+    ...conditions,
+    orderBy('openingDate', 'desc')
+  );
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(serviceOrderFromDoc);
+};
+
+export const getServiceOrdersCountByStatus = async (status: ServiceOrderStatus): Promise<number> => {
+  const q = query(collection(db, SERVICE_ORDERS_COLLECTION), where('status', '==', status));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.size;
+};
+
+export const getTotalCompletedServiceOrdersRevenue = async (): Promise<number> => {
+  const q = query(collection(db, SERVICE_ORDERS_COLLECTION), where('status', 'in', ['Concluída', 'Entregue']));
+  const querySnapshot = await getDocs(q);
+  let totalRevenue = 0;
+  querySnapshot.forEach((doc) => {
+    totalRevenue += (doc.data().grandTotalValue as number) || 0;
+  });
+  return totalRevenue;
 };

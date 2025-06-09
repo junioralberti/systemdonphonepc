@@ -8,7 +8,8 @@ import {
   type QueryDocumentSnapshot,
   getDocs,
   query,
-  orderBy
+  orderBy,
+  where
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -45,7 +46,7 @@ const saleFromDoc = (docSnap: QueryDocumentSnapshot<DocumentData>): Sale => {
     items: data.items || [],
     paymentMethod: data.paymentMethod || null,
     totalAmount: data.totalAmount || 0,
-    createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(),
+    createdAt: (data.createdAt instanceof Timestamp) ? data.createdAt.toDate() : (data.createdAt || new Date()),
   };
 };
 
@@ -62,4 +63,27 @@ export const getSales = async (): Promise<Sale[]> => {
   const q = query(collection(db, SALES_COLLECTION), orderBy('createdAt', 'desc'));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(saleFromDoc);
+};
+
+export const getSalesByDateRange = async (startDate: Date, endDate: Date): Promise<Sale[]> => {
+  const startTimestamp = Timestamp.fromDate(startDate);
+  const endTimestamp = Timestamp.fromDate(new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999)); // Ensure end of day
+
+  const q = query(
+    collection(db, SALES_COLLECTION),
+    where('createdAt', '>=', startTimestamp),
+    where('createdAt', '<=', endTimestamp),
+    orderBy('createdAt', 'desc')
+  );
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(saleFromDoc);
+};
+
+export const getTotalSalesRevenue = async (): Promise<number> => {
+  const querySnapshot = await getDocs(collection(db, SALES_COLLECTION));
+  let totalRevenue = 0;
+  querySnapshot.forEach((doc) => {
+    totalRevenue += (doc.data().totalAmount as number) || 0;
+  });
+  return totalRevenue;
 };
