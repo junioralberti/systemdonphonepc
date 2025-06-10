@@ -25,7 +25,7 @@ export default function SettingsPage() {
   const [businessPhone, setBusinessPhone] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined); // undefined means no change, null means remove existing
+  const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined);
   const [originalLogoUrl, setOriginalLogoUrl] = useState<string | null>(null);
 
   const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError, refetch: refetchEstablishmentSettings, isFetching: isFetchingSettings } = useQuery<EstablishmentSettings | null, Error>({
@@ -35,7 +35,7 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    if (establishmentSettings) { // Data exists in Firestore
+    if (establishmentSettings) {
       setBusinessName(establishmentSettings.businessName || "");
       setBusinessAddress(establishmentSettings.businessAddress || "");
       setBusinessCnpj(establishmentSettings.businessCnpj || "");
@@ -49,7 +49,7 @@ export default function SettingsPage() {
         setLogoPreview(null);
         setOriginalLogoUrl(null);
       }
-    } else { // No data in Firestore (or error during fetch, handled by settingsError), so fields are for "novo cadastro"
+    } else {
       setBusinessName("");
       setBusinessAddress("");
       setBusinessCnpj("");
@@ -58,6 +58,7 @@ export default function SettingsPage() {
       setLogoPreview(null);
       setOriginalLogoUrl(null);
     }
+    setLogoFile(undefined); // Reset intent on data load
   }, [establishmentSettings]);
 
 
@@ -67,7 +68,7 @@ export default function SettingsPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["establishmentSettings"] });
       toast({ title: "Sucesso!", description: "Dados do estabelecimento atualizados." });
-      if (data.logoUrl) {
+      if (data?.logoUrl) {
         setLogoPreview(data.logoUrl);
         setOriginalLogoUrl(data.logoUrl);
       } else {
@@ -77,6 +78,7 @@ export default function SettingsPage() {
       setLogoFile(undefined); 
     },
     onError: (error: Error) => {
+      console.error("Erro ao salvar dados do estabelecimento:", error);
       toast({ title: "Erro ao Salvar", description: `Falha ao salvar dados: ${error.message}`, variant: "destructive" });
     },
   });
@@ -94,7 +96,7 @@ export default function SettingsPage() {
   };
 
   const handleRemoveLogo = () => {
-    setLogoFile(null); // Mark for removal
+    setLogoFile(null); 
     setLogoPreview(null);
   };
 
@@ -148,7 +150,7 @@ export default function SettingsPage() {
                 height={60} 
                 className="max-h-16 object-contain" 
                 data-ai-hint="company logo"
-                unoptimized={logoPreview.startsWith('blob:')} // Add this if local blob URLs are used for preview
+                unoptimized={logoPreview.startsWith('blob:')} 
                 onError={() => {
                   setLogoPreview(null); 
                   toast({title: "Erro de Logo", description: "Não foi possível carregar a prévia do logo.", variant: "destructive"});
@@ -163,7 +165,7 @@ export default function SettingsPage() {
                 <Input id="logoUpload" type="file" accept="image/png, image/jpeg, image/webp, image/svg+xml" className="sr-only" onChange={handleLogoChange} />
               </Label>
             </Button>
-            {(logoPreview || logoFile === null) && ( // Show remove button if there's a preview OR if removal is explicitly requested
+            {(logoPreview || logoFile === null) && ( 
               <Button type="button" variant="ghost" onClick={handleRemoveLogo} className="text-destructive hover:text-destructive w-full sm:w-auto">
                 Remover Logo
               </Button>
@@ -256,4 +258,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-    
