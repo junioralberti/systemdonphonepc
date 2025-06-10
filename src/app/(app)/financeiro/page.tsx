@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle, Loader2, AlertTriangle, Landmark, ListChecks, CalendarClock, LineChart, Settings2, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { PlusCircle, Loader2, AlertTriangle, Landmark, ListChecks, CalendarClock, LineChart, Settings2, Trash2, CheckCircle2, XCircle, Pencil } from "lucide-react";
 import { ExpenseForm } from "@/components/finance/expense-form";
 import { ExpensesTable } from "@/components/finance/expenses-table";
 import { addExpense, getExpenses, updateExpense, deleteExpense, getExpensesByDateRange } from "@/services/expenseService";
@@ -21,8 +21,10 @@ import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, parseISO, startOfMonth, endOfMonth, getYear, getMonth, subMonths, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"
-import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart"
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Cell as RechartsPrimitiveCell } from "recharts"
+import { ChartContainer, ChartTooltipContent, RechartsTooltip, RechartsLegend } from "@/components/ui/chart"
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
 
 
 const currentYear = new Date().getFullYear();
@@ -258,7 +260,7 @@ export default function FinanceiroPage() {
                     Aplicar Filtros
                 </Button>
               </div>
-              {expensesError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Erro</AlertTitle><AlertDescription>{expensesError.message}</AlertDescription></Alert>}
+              {expensesError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><span className="font-semibold ml-2">Erro:</span><span className="ml-1">{expensesError.message}</span></Alert>}
               <ExpensesTable 
                 expenses={expenses || []} 
                 onEdit={handleEditExpense} 
@@ -280,7 +282,7 @@ export default function FinanceiroPage() {
             </CardHeader>
             <CardContent>
               {isLoadingExpenses && <div className="flex justify-center p-6"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
-              {expensesError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Erro</AlertTitle><AlertDescription>{expensesError.message}</AlertDescription></Alert>}
+              {expensesError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><span className="font-semibold ml-2">Erro:</span><span className="ml-1">{expensesError.message}</span></Alert>}
               {!isLoadingExpenses && !expensesError && pendingExpenses.length === 0 && (
                 <p className="text-muted-foreground text-center py-6">Nenhuma despesa pendente para exibir.</p>
               )}
@@ -376,7 +378,7 @@ export default function FinanceiroPage() {
                             <CardTitle className="text-base">Despesas por Categoria ({expenseReportData.monthLabel})</CardTitle>
                         </CardHeader>
                         <CardContent className="pl-2">
-                           <ChartContainer config={chartConfig} className="min-h-[200px] w-full aspect-auto">
+                           <ChartContainer config={chartConfig} className="min-h-[300px] w-full aspect-auto">
                                 <BarChart accessibilityLayer data={expenseReportData.categoriesSummary} layout="vertical" margin={{ right: 20, left: 20}}>
                                     <CartesianGrid vertical={false} />
                                     <XAxis type="number" dataKey="total" hide/>
@@ -388,6 +390,7 @@ export default function FinanceiroPage() {
                                         axisLine={false} 
                                         className="text-xs"
                                         interval={0}
+                                        width={100}
                                      />
                                     <RechartsTooltip 
                                         cursor={{ fill: "hsl(var(--muted))" }} 
@@ -407,7 +410,7 @@ export default function FinanceiroPage() {
                                     />
                                     <Bar dataKey="total" layout="vertical" radius={4} barSize={20}>
                                       {expenseReportData.categoriesSummary.map((entry, index) => (
-                                         <RechartsPrimitive.Cell key={`cell-${index}`} fill={index % 2 === 0 ? "hsl(var(--chart-1))" : "hsl(var(--chart-2))"} />
+                                         <RechartsPrimitiveCell key={`cell-${index}`} fill={index % 2 === 0 ? "hsl(var(--chart-1))" : "hsl(var(--chart-2))"} />
                                       ))}
                                     </Bar>
                                 </BarChart>
@@ -468,3 +471,5 @@ export default function FinanceiroPage() {
   );
 }
 
+
+    
