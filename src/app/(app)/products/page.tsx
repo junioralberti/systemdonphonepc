@@ -14,10 +14,19 @@ import type { Product } from "@/lib/schemas/product";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const initialProductFormValues: Partial<Product> = {
+  name: "",
+  sku: "",
+  price: 0,
+  stock: 0,
+  imageUrl: "",
+};
+
 export default function ProductsPage() {
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
   const [isEditProductDialogOpen, setIsEditProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [addProductFormDefaultValues, setAddProductFormDefaultValues] = useState<Partial<Product>>(initialProductFormValues);
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -39,11 +48,13 @@ export default function ProductsPage() {
   }, [productsError, toast]);
 
   const addProductMutation = useMutation({
-    mutationFn: (newProduct: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => addProduct(newProduct),
+    mutationFn: ({ productData, imageFile }: { productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'imageUrl'>, imageFile?: File | null }) => 
+      addProduct(productData, imageFile),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({ title: "Produto Adicionado", description: "Novo produto adicionado com sucesso." });
       setIsAddProductDialogOpen(false);
+      setAddProductFormDefaultValues(initialProductFormValues); // Reset form for next add
     },
     onError: (error: Error) => {
       toast({ title: "Erro", description: `Falha ao adicionar produto: ${error.message}`, variant: "destructive" });
@@ -51,7 +62,8 @@ export default function ProductsPage() {
   });
 
   const updateProductMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Omit<Product, 'id' | 'createdAt'>> }) => updateProduct(id, data),
+    mutationFn: ({ id, productData, imageFile, currentImageUrl }: { id: string; productData: Partial<Omit<Product, 'id' | 'createdAt' | 'imageUrl'>>; imageFile?: File | null | undefined, currentImageUrl?: string }) => 
+      updateProduct(id, productData, imageFile, currentImageUrl),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({ title: "Sucesso!", description: "Produto atualizado com sucesso." });
@@ -74,15 +86,15 @@ export default function ProductsPage() {
     },
   });
 
-  const handleAddProduct = async (data: Product) => {
-    const { id, createdAt, updatedAt, ...productData } = data;
-    await addProductMutation.mutateAsync(productData);
+  const handleAddProduct = async (data: Product, imageFile?: File | null) => {
+    const { id, createdAt, updatedAt, imageUrl, ...productData } = data;
+    await addProductMutation.mutateAsync({ productData, imageFile });
   };
 
-  const handleUpdateProduct = async (data: Product) => {
+  const handleUpdateProduct = async (data: Product, imageFile?: File | null | undefined) => {
     if (!editingProduct || !editingProduct.id) return;
-    const { id, createdAt, updatedAt, ...productData } = data;
-    await updateProductMutation.mutateAsync({ id: editingProduct.id, data: productData });
+    const { id, createdAt, updatedAt, imageUrl: currentImgUrl, ...productData } = data;
+    await updateProductMutation.mutateAsync({ id: editingProduct.id, productData, imageFile, currentImageUrl: editingProduct.imageUrl });
   };
 
   const handleDeleteProduct = async (productId: string) => {
@@ -94,13 +106,21 @@ export default function ProductsPage() {
     setIsEditProductDialogOpen(true);
   };
   
+  const openAddDialog = () => {
+    setAddProductFormDefaultValues(initialProductFormValues); 
+    setIsAddProductDialogOpen(true);
+  }
+
   const ProductListSkeleton = () => (
     <div className="space-y-3">
       {[...Array(4)].map((_, i) => (
          <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-          <div className="space-y-1.5 w-full">
-            <Skeleton className="h-5 w-1/2 rounded" />
-            <Skeleton className="h-3 w-1/4 rounded" />
+          <div className="flex items-center gap-4 w-full">
+            <Skeleton className="h-12 w-12 rounded-md" />
+            <div className="space-y-1.5 w-full">
+              <Skeleton className="h-5 w-1/2 rounded" />
+              <Skeleton className="h-3 w-1/4 rounded" />
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <Skeleton className="h-9 w-9 rounded-md" />
@@ -115,9 +135,14 @@ export default function ProductsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="font-headline text-3xl font-semibold">Gerenciamento de Produtos</h1>
-        <Dialog open={isAddProductDialogOpen} onOpenChange={setIsAddProductDialogOpen}>
+        <Dialog open={isAddProductDialogOpen} onOpenChange={(isOpen) => {
+          setIsAddProductDialogOpen(isOpen);
+          if (!isOpen) {
+            setAddProductFormDefaultValues(initialProductFormValues); 
+          }
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={openAddDialog}>
               <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Novo Produto
             </Button>
           </DialogTrigger>
@@ -128,7 +153,8 @@ export default function ProductsPage() {
             </DialogHeader>
             <ProductForm 
               onSubmit={handleAddProduct} 
-              isLoading={addProductMutation.isPending} 
+              isLoading={addProductMutation.isPending}
+              defaultValues={addProductFormDefaultValues}
             />
           </DialogContent>
         </Dialog>

@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, PackageSearch, Loader2 } from "lucide-react";
+import { Pencil, Trash2, PackageSearch, Loader2, ImageOff } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import Image from "next/image";
 
 interface ProductsTableProps {
   products: Product[];
@@ -49,6 +50,7 @@ export function ProductsTable({ products, onEdit, onDelete, isLoadingDeleteForId
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[80px] hidden sm:table-cell">Imagem</TableHead>
             <TableHead>Nome</TableHead>
             <TableHead className="hidden md:table-cell">SKU</TableHead>
             <TableHead className="text-right">Preço (R$)</TableHead>
@@ -60,6 +62,23 @@ export function ProductsTable({ products, onEdit, onDelete, isLoadingDeleteForId
         <TableBody>
           {products.map((product) => (
             <TableRow key={product.id}>
+              <TableCell className="hidden sm:table-cell">
+                {product.imageUrl ? (
+                  <Image
+                    src={product.imageUrl}
+                    alt={product.name}
+                    width={50}
+                    height={50}
+                    className="rounded-md object-contain aspect-square bg-muted/30 p-0.5"
+                    data-ai-hint="product image"
+                    onError={(e) => (e.currentTarget.style.display = 'none')} // Hide on error
+                  />
+                ) : (
+                  <div className="w-[50px] h-[50px] flex items-center justify-center bg-muted rounded-md text-muted-foreground">
+                    <ImageOff size={24} />
+                  </div>
+                )}
+              </TableCell>
               <TableCell className="font-medium">{product.name}</TableCell>
               <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{product.sku}</TableCell>
               <TableCell className="text-right">{product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>

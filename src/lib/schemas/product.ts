@@ -13,6 +13,7 @@ export const ProductSchema = z.object({
     (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
     z.number({ invalid_type_error: "Estoque deve ser um número." }).int().nonnegative({ message: "O estoque não pode ser negativo." })
   ),
+  imageUrl: z.string().url({ message: "URL da imagem inválida." }).optional().or(z.literal('')),
   createdAt: z.any().optional(),
   updatedAt: z.any().optional(),
 });
