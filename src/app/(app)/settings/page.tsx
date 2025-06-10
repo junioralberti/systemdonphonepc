@@ -28,8 +28,8 @@ export default function SettingsPage() {
   const [businessPhone, setBusinessPhone] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined); // undefined: no change, null: remove, File: new
-  const [originalLogoUrl, setOriginalLogoUrl] = useState<string | null>(null); // To store the initial logo URL for reset
+  const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined);
+  const [originalLogoUrl, setOriginalLogoUrl] = useState<string | null>(null);
 
   const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError, refetch: refetchEstablishmentSettings, isFetching: isFetchingSettings } = useQuery<EstablishmentSettings | null, Error>({
     queryKey: ["establishmentSettings"],
@@ -47,7 +47,6 @@ export default function SettingsPage() {
       setLogoPreview(settings.logoUrl || null);
       setOriginalLogoUrl(settings.logoUrl || null);
     } else {
-      // Reset fields if no settings
       setBusinessName("");
       setBusinessAddress("");
       setBusinessCnpj("");
@@ -56,19 +55,19 @@ export default function SettingsPage() {
       setLogoPreview(null);
       setOriginalLogoUrl(null);
     }
-    setLogoFile(undefined); // Reset any staged file
+    setLogoFile(undefined); 
   };
   
   useEffect(() => {
     populateFormFields(establishmentSettings);
     if (!isLoadingSettings && !settingsError) {
       if (establishmentSettings) {
-        setIsEditingEstablishmentData(false); // Data exists, start in view mode
+        setIsEditingEstablishmentData(false); 
       } else {
-        setIsEditingEstablishmentData(true); // No data, start in edit mode (initial setup)
+        setIsEditingEstablishmentData(true); 
       }
     } else if (settingsError) {
-      setIsEditingEstablishmentData(true); // If error loading, still show form for potential initial entry
+      setIsEditingEstablishmentData(true); 
     }
   }, [establishmentSettings, isLoadingSettings, settingsError]);
 
@@ -79,20 +78,19 @@ export default function SettingsPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["establishmentSettings"] });
       toast({ title: "Sucesso!", description: "Dados do estabelecimento atualizados." });
-      // Update form states with potentially new logoUrl from server
-      if (data?.logoUrl) {
-        setLogoPreview(data.logoUrl);
-        setOriginalLogoUrl(data.logoUrl); // Update original URL after save
-      } else {
-        setLogoPreview(null);
-        setOriginalLogoUrl(null);
-      }
-      setLogoFile(undefined); 
+      
+      // Update form states with potentially new logoUrl from server and reset file input
+      populateFormFields(data); // This will reset logoFile to undefined
       setIsEditingEstablishmentData(false); // Switch back to view mode
     },
     onError: (error: Error) => {
-      console.error("Erro ao salvar dados do estabelecimento:", error);
-      toast({ title: "Erro ao Salvar", description: `Falha ao salvar dados: ${error.message}`, variant: "destructive" });
+      console.error("Erro ao salvar dados do estabelecimento na página:", error);
+      toast({ 
+        title: "Erro ao Salvar", 
+        description: `Falha ao salvar dados: ${error.message || 'Ocorreu um erro desconhecido.'}`, 
+        variant: "destructive",
+        duration: 7000,
+      });
     },
   });
 
@@ -126,7 +124,6 @@ export default function SettingsPage() {
   };
 
   const handleCancelEdit = () => {
-    // Repopulate form fields with original data
     populateFormFields(establishmentSettings);
     setIsEditingEstablishmentData(false);
   };
@@ -199,7 +196,7 @@ export default function SettingsPage() {
         
         {isLoadingSettings ? (
             <EstablishmentDataSkeleton />
-        ) : settingsError && !isEditingEstablishmentData ? ( // Only show error if not already in edit mode due to no data
+        ) : settingsError && !isEditingEstablishmentData ? ( 
            <CardContent className="pb-4">
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
@@ -212,14 +209,12 @@ export default function SettingsPage() {
                 </Button>
               </AlertDescription>
             </Alert>
-            {/* Form shown below if error occurs, driven by isEditing being true */}
           </CardContent>
         ) : null}
         
         {isEditingEstablishmentData || (!isLoadingSettings && !establishmentSettings) ? (
-          // Form Mode
           <form onSubmit={handleSaveEstablishmentData}>
-            <CardContent className="space-y-6 pt-0 sm:pt-6"> {/* Adjust padding if error message is shown */}
+            <CardContent className="space-y-6 pt-0 sm:pt-6"> 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <Label htmlFor="businessName">Nome do Estabelecimento</Label>
@@ -280,7 +275,7 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter className="border-t pt-6 flex flex-col sm:flex-row justify-end gap-2">
-              {establishmentSettings && ( // Show Cancel only if editing existing data, not initial setup
+              {establishmentSettings && ( 
                 <Button type="button" variant="outline" onClick={handleCancelEdit} className="w-full sm:w-auto" disabled={saveSettingsMutation.isPending || isFetchingSettings}>
                   Cancelar
                 </Button>
@@ -296,7 +291,6 @@ export default function SettingsPage() {
             </CardFooter>
           </form>
         ) : establishmentSettings ? (
-          // Display Mode
           <>
             <CardContent className="space-y-6">
               <div className="flex flex-col sm:flex-row items-start gap-4">
@@ -333,10 +327,8 @@ export default function SettingsPage() {
               </Button>
             </CardFooter>
           </>
-        ) : null /* Should not happen if logic is correct, covered by isLoading or form display */}
+        ) : null }
       </Card>
     </div>
   );
 }
-
-    

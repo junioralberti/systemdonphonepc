@@ -15,9 +15,17 @@ const firebaseConfig = {
 
 let app: FirebaseApp;
 let db: Firestore;
-let auth: Auth;
-let storage: FirebaseStorage;
-let persistenceAttempted = false; // Flag to ensure enablePersistence is only attempted once per session
+let authInstance: Auth; // Renamed to avoid conflict with auth module
+let storageInstance: FirebaseStorage; // Renamed for clarity
+let persistenceAttempted = false;
+
+if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
+  console.error("Firebase Project ID (NEXT_PUBLIC_FIREBASE_PROJECT_ID) is not set in environment variables. Firebase will not initialize correctly.");
+}
+if (!process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) {
+  console.warn("Firebase Storage Bucket (NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) is not set in environment variables. Storage operations might fail.");
+}
+
 
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
@@ -27,7 +35,6 @@ if (!getApps().length) {
 
 db = getFirestore(app);
 
-// Attempt to enable persistence only once
 if (typeof window !== 'undefined' && !persistenceAttempted) {
   persistenceAttempted = true;
   enableIndexedDbPersistence(db, { cacheSizeBytes: CACHE_SIZE_UNLIMITED })
@@ -36,11 +43,8 @@ if (typeof window !== 'undefined' && !persistenceAttempted) {
     })
     .catch((err) => {
       if (err.code === 'failed-precondition') {
-        // This can happen if multiple tabs are open, as persistence can only be enabled in one.
-        // It's also possible an already initialized persistence instance is active.
         console.warn("Firestore offline persistence failed (failed-precondition). This may be due to multiple tabs open or existing persistence.");
       } else if (err.code === 'unimplemented') {
-        // The current browser does not support all of the features required to enable persistence.
         console.warn("Firestore offline persistence failed (unimplemented). The browser may not support the required features.");
       } else {
         console.error("An unknown error occurred while enabling Firestore offline persistence:", err);
@@ -49,8 +53,8 @@ if (typeof window !== 'undefined' && !persistenceAttempted) {
 }
 
 
-auth = getAuth(app);
-storage = getStorage(app);
+authInstance = getAuth(app);
+storageInstance = getStorage(app);
 
-export { app, db, auth, storage };
+export { app, db, authInstance as auth, storageInstance as storage }; // Export renamed instances
 

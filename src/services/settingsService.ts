@@ -1,11 +1,11 @@
 
 import { doc, getDoc, setDoc, serverTimestamp, Timestamp, type DocumentData } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase'; // storage here is the FirebaseStorage instance
 
 const SETTINGS_COLLECTION = 'systemSettings';
 const ESTABLISHMENT_DOC_ID = 'establishmentDetails';
-const LOGO_STORAGE_PATH = 'establishment_logo/app_logo'; // Generic path for the logo
+const LOGO_STORAGE_PATH = 'establishment_logo/app_logo';
 
 export interface EstablishmentSettings {
   businessName?: string;
@@ -17,7 +17,6 @@ export interface EstablishmentSettings {
   updatedAt?: Timestamp;
 }
 
-// Helper to convert Firestore doc data to EstablishmentSettings
 const settingsFromDocData = (data: DocumentData | undefined): EstablishmentSettings | null => {
   if (!data) {
     return null;
@@ -33,7 +32,6 @@ const settingsFromDocData = (data: DocumentData | undefined): EstablishmentSetti
   };
 };
 
-
 export const getEstablishmentSettings = async (): Promise<EstablishmentSettings | null> => {
   const docRef = doc(db, SETTINGS_COLLECTION, ESTABLISHMENT_DOC_ID);
   const docSnap = await getDoc(docRef);
@@ -45,42 +43,52 @@ export const getEstablishmentSettings = async (): Promise<EstablishmentSettings 
 
 export const saveEstablishmentSettings = async (
   settingsData: Omit<EstablishmentSettings, 'updatedAt' | 'logoUrl'>,
-  logoFile?: File | null // undefined means no change, null means remove, File means upload
+  logoFile?: File | null
 ): Promise<EstablishmentSettings> => {
+  console.log("Attempting to save establishment settings. Logo file:", logoFile);
   const docRef = doc(db, SETTINGS_COLLECTION, ESTABLISHMENT_DOC_ID);
   let finalLogoUrl: string | undefined = undefined;
 
   const currentSettingsSnap = await getDoc(docRef);
   const currentLogoUrl = currentSettingsSnap.exists() ? currentSettingsSnap.data()?.logoUrl : undefined;
+  console.log("Current logo URL from Firestore:", currentLogoUrl);
+
   const logoStorageRef = ref(storage, LOGO_STORAGE_PATH);
 
-  if (logoFile instanceof File) { // New logo to upload
-    // Try to delete old logo if it exists and isn't a placeholder
-    if (currentLogoUrl && !currentLogoUrl.startsWith('https://placehold.co')) {
-      try {
-        // Delete the existing logo at the fixed path
-        await deleteObject(logoStorageRef);
-      } catch (error: any) {
-        if (error.code !== 'storage/object-not-found') {
-          console.warn("Old logo deletion failed (might not exist or other issue):", error);
-        }
-      }
+  if (logoFile instanceof File) {
+    console.log("New logo file provided. Attempting to upload to:", LOGO_STORAGE_PATH);
+    try {
+      // No need to explicitly delete if overwriting the same path.
+      // uploadBytes will replace the file if it exists at logoStorageRef.
+      const uploadResult = await uploadBytes(logoStorageRef, logoFile);
+      console.log("Logo uploaded successfully:", uploadResult);
+      finalLogoUrl = await getDownloadURL(logoStorageRef);
+      console.log("New logo URL:", finalLogoUrl);
+    } catch (uploadError) {
+      console.error("Error uploading new logo to Firebase Storage:", uploadError);
+      throw new Error(`Falha no upload do novo logo: ${uploadError.message || 'Erro desconhecido no Storage.'}`);
     }
-    await uploadBytes(logoStorageRef, logoFile);
-    finalLogoUrl = await getDownloadURL(logoStorageRef);
   } else if (logoFile === null) { // Explicit request to remove logo
+    console.log("Request to remove existing logo.");
     if (currentLogoUrl && !currentLogoUrl.startsWith('https://placehold.co')) {
+      console.log("Attempting to delete existing logo from storage path:", LOGO_STORAGE_PATH);
       try {
-        // Delete the existing logo at the fixed path
         await deleteObject(logoStorageRef);
+        console.log("Existing logo deleted successfully from storage.");
       } catch (error: any) {
-        if (error.code !== 'storage/object-not-found') {
-          console.warn("Logo deletion failed (object not found or other):", error);
+        if (error.code === 'storage/object-not-found') {
+          console.warn("Logo to delete not found in storage (path: " + LOGO_STORAGE_PATH + "). This is often normal.");
+        } else {
+          console.error("Error deleting logo from Firebase Storage:", error);
+          throw new Error(`Falha ao remover o logo existente: ${error.message || 'Erro desconhecido no Storage.'}`);
         }
       }
+    } else {
+      console.log("No existing logo to delete or it's a placeholder.");
     }
     finalLogoUrl = ""; // Set to empty string to indicate no logo
   } else { // No change to logo (logoFile is undefined)
+    console.log("No change to logo file. Keeping current URL if exists.");
     finalLogoUrl = currentLogoUrl;
   }
 
@@ -91,18 +99,22 @@ export const saveEstablishmentSettings = async (
 
   if (finalLogoUrl !== undefined) {
     dataToSave.logoUrl = finalLogoUrl;
-  } else if (currentLogoUrl === undefined) { // If no new/removed logo AND no current logo, ensure it's empty
-    dataToSave.logoUrl = "";
   }
-  // If finalLogoUrl is undefined but currentLogoUrl exists, merge:true will keep currentLogoUrl
 
-
-  await setDoc(docRef, dataToSave, { merge: true });
-
-  // Construct the full object to return, ensuring all fields are present even if empty
-  const savedData = await getDoc(docRef); // Re-fetch to get serverTimestamp resolved
-  return settingsFromDocData(savedData.data()) || { 
-    // Fallback in case re-fetch fails, though unlikely
+  console.log("Data to be saved in Firestore:", dataToSave);
+  try {
+    await setDoc(docRef, dataToSave, { merge: true });
+    console.log("Establishment settings saved successfully to Firestore.");
+  } catch (firestoreError) {
+    console.error("Error saving settings to Firestore:", firestoreError);
+    throw new Error(`Falha ao salvar configurações no banco de dados: ${firestoreError.message || 'Erro desconhecido no Firestore.'}`);
+  }
+  
+  const savedDataSnap = await getDoc(docRef);
+  const fullSavedData = settingsFromDocData(savedDataSnap.data());
+  console.log("Full settings data after save:", fullSavedData);
+  
+  return fullSavedData || { 
     businessName: settingsData.businessName ?? "",
     businessAddress: settingsData.businessAddress ?? "",
     businessCnpj: settingsData.businessCnpj ?? "",
