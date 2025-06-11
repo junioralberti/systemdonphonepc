@@ -58,8 +58,8 @@ export default function DashboardPage() {
   
   const renderStatSubtitle = (isLoading: boolean, error?: Error | null, defaultText: string = "Dados atualizados.") => {
      if (isLoading || isSettingUpDashboard) return <Skeleton className="h-3 w-32" />;
-     if (error) return <span className="text-xs text-destructive">{error.message}</span>;
-     return defaultText;
+     if (error) return <p className="text-xs text-destructive">{error.message}</p>;
+     return <p className="text-xs text-muted-foreground">{defaultText}</p>;
   };
 
   // Filter navItems for dashboard display (exclude settings, logout, users for non-admin)
@@ -83,9 +83,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {renderStatValue(combinedTotalRevenue, isSettingUpDashboard, true, salesRevenueError || osRevenueError)}
-            <p className="text-xs text-muted-foreground">
-                {renderStatSubtitle(isSettingUpDashboard, salesRevenueError || osRevenueError, "Vendas + OS Concluídas/Entregues")}
-            </p>
+            {renderStatSubtitle(isSettingUpDashboard, salesRevenueError || osRevenueError, "Vendas + OS Concluídas/Entregues")}
           </CardContent>
         </Card>
         <Card>
@@ -97,9 +95,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {renderStatValue(activeClientsCount, isSettingUpDashboard, false, clientsError)}
-             <p className="text-xs text-muted-foreground">
-                {renderStatSubtitle(isSettingUpDashboard, clientsError, "Total de clientes cadastrados.")}
-            </p>
+            {renderStatSubtitle(isSettingUpDashboard, clientsError, "Total de clientes cadastrados.")}
           </CardContent>
         </Card>
         <Card>
@@ -109,9 +105,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
              {renderStatValue(openServiceOrdersCount ?? "0", isSettingUpDashboard, false, openOsCountError)}
-             <p className="text-xs text-muted-foreground">
-                {renderStatSubtitle(isSettingUpDashboard, openOsCountError, "OS em Aberto, Em Andamento ou Aguardando Peça.")}
-            </p>
+             {renderStatSubtitle(isSettingUpDashboard, openOsCountError, "OS em Aberto, Em Andamento ou Aguardando Peça.")}
           </CardContent>
         </Card>
         <Card>
@@ -121,9 +115,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {renderStatValue(openServiceOrdersCount ?? "0", isSettingUpDashboard, false, openOsCountError)}
-            <p className="text-xs text-muted-foreground">
-             {renderStatSubtitle(isSettingUpDashboard, openOsCountError, "Total de OS com reparo não finalizado.")}
-            </p>
+            {renderStatSubtitle(isSettingUpDashboard, openOsCountError, "Total de OS com reparo não finalizado.")}
           </CardContent>
         </Card>
       </div>
@@ -168,4 +160,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
