@@ -8,15 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as TableSummaryFooter } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User, Loader2, PackagePlus, PackageSearch } from "lucide-react";
+import { PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User, Loader2, PackagePlus, PackageSearch, History, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
-import { addSale, type SaleInput, type CartItemInput } from "@/services/salesService"; 
+import { addSale, getSales, type Sale, type SaleInput, type CartItemInput } from "@/services/salesService"; 
 import { getProducts, addProduct } from "@/services/productService"; 
 import type { Product } from "@/lib/schemas/product";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ProductForm } from "@/components/products/product-form";
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 interface CartItem extends CartItemInput {
@@ -34,13 +37,18 @@ export default function CounterSalesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [establishmentDataForPrint, setEstablishmentDataForPrint] = useState<EstablishmentSettings | null>(null);
-  const [isProcessingCartAction, setIsProcessingCartAction] = useState(false); // Renamed from isLookingUpSku
+  const [isProcessingCartAction, setIsProcessingCartAction] = useState(false); 
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
   const [selectedProductSkuForCart, setSelectedProductSkuForCart] = useState<string>("");
 
   const { data: products, isLoading: isLoadingProducts, error: productsError } = useQuery<Product[], Error>({
     queryKey: ["products"],
     queryFn: getProducts,
+  });
+
+  const { data: salesHistory, isLoading: isLoadingSalesHistory, error: salesHistoryError, refetch: refetchSalesHistory } = useQuery<Sale[], Error>({
+    queryKey: ["sales"], // Using "sales" so it gets invalidated by addSaleMutation
+    queryFn: getSales,
   });
 
   useEffect(() => {
@@ -132,7 +140,6 @@ export default function CounterSalesPage() {
         setSelectedProductSkuForCart(""); // Reset selection
         toast({ title: "Item Adicionado", description: `${product.name} adicionado ao carrinho.` });
       } else {
-         // This case should be rare if product is coming from the fetched list
         toast({ title: "Erro ao Adicionar Produto", description: "Não foi possível adicionar o produto selecionado.", variant: "destructive" });
       }
     } catch (error) {
@@ -291,13 +298,33 @@ export default function CounterSalesPage() {
     await addProductMutationFromDialog.mutateAsync(productData);
   };
 
-  const selectedProductName = products?.find(p => p.sku === selectedProductSkuForCart)?.name || "Selecione um produto";
+  const SalesHistorySkeleton = () => (
+    <div className="space-y-3">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="space-y-1.5 w-2/3">
+            <Skeleton className="h-5 w-1/2 rounded" />
+            <Skeleton className="h-3 w-1/3 rounded" />
+          </div>
+          <Skeleton className="h-5 w-1/4 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="font-headline text-3xl font-semibold">Vendas no Balcão</h1>
-         <Button variant="outline">
+         <Button variant="outline" onClick={() => {
+            if (cartItems.length === 0) {
+                 toast({ title: "Carrinho Vazio", description: "Adicione itens ao carrinho para visualizar." });
+            } else {
+                // Implement logic to show cart if needed, or remove this button if cart is always visible
+                 toast({ title: "Visualizar Carrinho", description: `Itens: ${cartItems.reduce((acc, item) => acc + item.quantity, 0)}, Total: R$ ${calculateTotal().toFixed(2)}` });
+            }
+         }}>
           <ShoppingCart className="mr-2 h-4 w-4" /> Ver Carrinho ({cartItems.reduce((acc, item) => acc + item.quantity, 0)})
         </Button>
       </div>
@@ -470,6 +497,63 @@ export default function CounterSalesPage() {
         </CardFooter>
       </Card>
 
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Histórico de Vendas Recentes
+          </CardTitle>
+          <CardDescription>Lista das últimas vendas realizadas no balcão.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingSalesHistory ? (
+            <SalesHistorySkeleton />
+          ) : salesHistoryError ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-6 text-center text-destructive">
+              <AlertTriangle className="h-10 w-10" />
+              <p className="text-md font-medium">Erro ao carregar histórico de vendas</p>
+              <p className="text-sm text-muted-foreground">{salesHistoryError.message}</p>
+              <Button onClick={() => refetchSalesHistory()} variant="outline" size="sm" className="mt-2">
+                Tentar Novamente
+              </Button>
+            </div>
+          ) : salesHistory && salesHistory.length > 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead className="text-right">Valor Total (R$)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {salesHistory.map((sale) => (
+                    <TableRow key={sale.id}>
+                      <TableCell className="text-sm">
+                        {sale.createdAt instanceof Date 
+                          ? format(sale.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR }) 
+                          : (sale.createdAt ? new Date(sale.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : 'N/D')}
+                      </TableCell>
+                      <TableCell className="text-sm">{sale.clientName || "Não informado"}</TableCell>
+                      <TableCell className="text-right font-medium text-sm">
+                        {sale.totalAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              <ShoppingCart className="mx-auto h-12 w-12 mb-2 opacity-50" />
+              <p>Nenhuma venda registrada ainda.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+
       <Dialog open={isAddProductDialogOpen} onOpenChange={setIsAddProductDialogOpen}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
@@ -487,5 +571,4 @@ export default function CounterSalesPage() {
     </div>
   );
 }
-
     
