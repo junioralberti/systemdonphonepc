@@ -8,18 +8,21 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as TableSummaryFooter } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User, Loader2, PackagePlus, PackageSearch, History, AlertTriangle } from "lucide-react";
+import { PlusCircle, ShoppingCart, Trash2, MinusCircle, DollarSign, Printer, User, Loader2, PackagePlus, PackageSearch, History, AlertTriangle, Ban, Edit } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { getEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
-import { addSale, getSales, type Sale, type SaleInput, type CartItemInput } from "@/services/salesService"; 
+import { addSale, getSales, cancelSale, type Sale, type SaleInput, type CartItemInput, type PaymentMethod, type SaleStatus } from "@/services/salesService"; 
 import { getProducts, addProduct } from "@/services/productService"; 
 import type { Product } from "@/lib/schemas/product";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ProductForm } from "@/components/products/product-form";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 
 
 interface CartItem extends CartItemInput {
@@ -27,7 +30,6 @@ interface CartItem extends CartItemInput {
   sku: string; 
 }
 
-type PaymentMethod = "Dinheiro" | "Cartão de Crédito" | "Cartão de Débito" | "PIX";
 const paymentMethods: PaymentMethod[] = ["Dinheiro", "Cartão de Crédito", "Cartão de Débito", "PIX"];
 
 export default function CounterSalesPage() {
@@ -41,13 +43,19 @@ export default function CounterSalesPage() {
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
   const [selectedProductSkuForCart, setSelectedProductSkuForCart] = useState<string>("");
 
+  // State for cancellation dialog
+  const [isCancelSaleDialogOpen, setIsCancelSaleDialogOpen] = useState(false);
+  const [saleToCancelId, setSaleToCancelId] = useState<string | null>(null);
+  const [cancellationReason, setCancellationReason] = useState("");
+
+
   const { data: products, isLoading: isLoadingProducts, error: productsError } = useQuery<Product[], Error>({
     queryKey: ["products"],
     queryFn: getProducts,
   });
 
   const { data: salesHistory, isLoading: isLoadingSalesHistory, error: salesHistoryError, refetch: refetchSalesHistory } = useQuery<Sale[], Error>({
-    queryKey: ["sales"], // Using "sales" so it gets invalidated by addSaleMutation
+    queryKey: ["sales"],
     queryFn: getSales,
   });
 
@@ -69,16 +77,17 @@ export default function CounterSalesPage() {
       queryClient.invalidateQueries({ queryKey: ["sales"] }); 
       toast({ 
         title: "Venda Concluída!", 
-        description: `Venda ${saleId} registrada com sucesso. Cliente: ${clientNameForSale || "Não informado"}. Pagamento: ${paymentMethod}. Total: R$ ${calculateTotal().toFixed(2)}`
+        description: `Venda registrada com sucesso. Cliente: ${clientNameForSale || "Não informado"}. Pagamento: ${paymentMethod}. Total: R$ ${calculateTotal().toFixed(2)}`
       });
       
-      const saleDataForPrint: SaleInput & { saleId: string; date: string } = {
+      const saleDataForPrint: SaleInput & { saleId: string; date: string; status: SaleStatus } = {
         saleId, 
         date: new Date().toLocaleString('pt-BR'),
         clientName: clientNameForSale || null,
         items: cartItems.map(({id, sku, ...item}) => item), 
         paymentMethod: paymentMethod || null,
         totalAmount: calculateTotal(),
+        status: "Concluída",
       };
       handlePrintSaleReceipt(saleDataForPrint);
       resetSaleForm();
@@ -101,6 +110,20 @@ export default function CounterSalesPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao Adicionar Produto", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const cancelSaleMutation = useMutation({
+    mutationFn: ({ saleId, reason }: { saleId: string; reason: string }) => cancelSale(saleId, reason),
+    onSuccess: (_, { saleId }) => {
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
+      toast({ title: "Venda Cancelada", description: `A venda foi cancelada com sucesso.` });
+      setIsCancelSaleDialogOpen(false);
+      setSaleToCancelId(null);
+      setCancellationReason("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao Cancelar Venda", description: error.message, variant: "destructive" });
     },
   });
 
@@ -137,7 +160,7 @@ export default function CounterSalesPage() {
             quantity: 1 
           }]);
         }
-        setSelectedProductSkuForCart(""); // Reset selection
+        setSelectedProductSkuForCart(""); 
         toast({ title: "Item Adicionado", description: `${product.name} adicionado ao carrinho.` });
       } else {
         toast({ title: "Erro ao Adicionar Produto", description: "Não foi possível adicionar o produto selecionado.", variant: "destructive" });
@@ -181,6 +204,8 @@ export default function CounterSalesPage() {
     items: CartItemInput[]; 
     paymentMethod?: PaymentMethod | null;
     totalAmount: number;
+    status: SaleStatus; // Added status for print
+    cancellationReason?: string | null; // Added for print
   }) => {
     const establishmentDataToUse = establishmentDataForPrint || {
       businessName: "Nome da Empresa Aqui",
@@ -204,8 +229,9 @@ export default function CounterSalesPage() {
         .establishment-info { font-size: 9pt; line-height: 1.4; }
         .establishment-info strong { font-size: 12pt; display: block; margin-bottom: 4px; color: #000; }
         .section-title { font-size: 12pt; font-weight: bold; margin-top: 20px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #eee; color: #000; }
-        .details-grid { display: grid; grid-template-columns: 1fr; gap: 4px; margin-bottom: 15px; font-size: 9pt; }
-        .details-grid strong { color: #555; }
+        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-bottom: 15px; font-size: 9pt; }
+        .details-grid-full { display: grid; grid-template-columns: 1fr; gap: 4px; margin-bottom: 15px; font-size: 9pt;}
+        .details-grid strong, .details-grid-full strong { color: #555; }
         .items-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt; }
         .items-table th, .items-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .items-table th { background-color: #f2f2f2; font-weight: bold; }
@@ -214,7 +240,8 @@ export default function CounterSalesPage() {
         .summary-section { margin-top: 15px; padding-top:10px; border-top: 1px solid #ccc; font-size: 10pt; }
         .summary-section div { display: flex; justify-content: space-between; margin-bottom: 5px; }
         .summary-section .grand-total { font-size: 11pt; font-weight: bold; }
-        h1.receipt-title { text-align: center; font-size: 16pt; margin-bottom: 15px; color: #000;}
+        h1.receipt-title { text-align: center; font-size: 16pt; margin-bottom: 5px; color: #000;}
+        .status-cancelled { text-align: center; font-size: 14pt; color: red; font-weight: bold; margin-bottom: 10px; border: 2px dashed red; padding: 5px;}
       `);
       printWindow.document.write('</style></head><body><div class="print-container">');
 
@@ -234,6 +261,12 @@ export default function CounterSalesPage() {
 
 
       printWindow.document.write(`<h1 class="receipt-title">COMPROVANTE DE VENDA</h1>`);
+      if (saleData.status === "Cancelada") {
+        printWindow.document.write(`<div class="status-cancelled">VENDA CANCELADA</div>`);
+        if(saleData.cancellationReason) {
+             printWindow.document.write(`<div style="text-align:center; font-size: 9pt; margin-bottom:10px;"><strong>Motivo:</strong> ${saleData.cancellationReason}</div>`);
+        }
+      }
       printWindow.document.write('<div class="details-grid">');
       printWindow.document.write(`<div><strong>Nº Venda:</strong> ${saleData.saleId}</div>`);
       printWindow.document.write(`<div><strong>Data:</strong> ${saleData.date}</div>`);
@@ -288,6 +321,7 @@ export default function CounterSalesPage() {
       items: cartItems.map(({ id, sku, ...item }) => item), 
       paymentMethod: paymentMethod || null,
       totalAmount: calculateTotal(),
+      status: "Concluída", // Explicitly set
     };
     
     addSaleMutation.mutate(saleToSave);
@@ -297,6 +331,22 @@ export default function CounterSalesPage() {
     const { id, createdAt, updatedAt, ...productData } = data;
     await addProductMutationFromDialog.mutateAsync(productData);
   };
+
+  const handleOpenCancelDialog = (saleId: string) => {
+    setSaleToCancelId(saleId);
+    setCancellationReason("");
+    setIsCancelSaleDialogOpen(true);
+  };
+
+  const handleConfirmCancellation = () => {
+    if (!saleToCancelId) return;
+    if (!cancellationReason.trim()) {
+      toast({ title: "Motivo Obrigatório", description: "Por favor, informe o motivo do cancelamento.", variant: "destructive" });
+      return;
+    }
+    cancelSaleMutation.mutate({ saleId: saleToCancelId, reason: cancellationReason });
+  };
+
 
   const SalesHistorySkeleton = () => (
     <div className="space-y-3">
@@ -321,7 +371,6 @@ export default function CounterSalesPage() {
             if (cartItems.length === 0) {
                  toast({ title: "Carrinho Vazio", description: "Adicione itens ao carrinho para visualizar." });
             } else {
-                // Implement logic to show cart if needed, or remove this button if cart is always visible
                  toast({ title: "Visualizar Carrinho", description: `Itens: ${cartItems.reduce((acc, item) => acc + item.quantity, 0)}, Total: R$ ${calculateTotal().toFixed(2)}` });
             }
          }}>
@@ -474,7 +523,8 @@ export default function CounterSalesPage() {
                 clientName: clientNameForSale,
                 items: cartItems.map(({id, sku, ...item}) => item),
                 paymentMethod,
-                totalAmount: calculateTotal()
+                totalAmount: calculateTotal(),
+                status: "Concluída", // Assuming preview is for a completed sale
             })} 
             disabled={cartItems.length === 0}
             className="w-full sm:w-auto"
@@ -524,20 +574,66 @@ export default function CounterSalesPage() {
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Cliente</TableHead>
-                    <TableHead className="text-right">Valor Total (R$)</TableHead>
+                    <TableHead className="text-right">Valor (R$)</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {salesHistory.map((sale) => (
-                    <TableRow key={sale.id}>
+                    <TableRow key={sale.id} className={sale.status === "Cancelada" ? "opacity-60" : ""}>
                       <TableCell className="text-sm">
                         {sale.createdAt instanceof Date 
                           ? format(sale.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR }) 
-                          : (sale.createdAt ? new Date(sale.createdAt.seconds * 1000).toLocaleDateString('pt-BR') : 'N/D')}
+                          : (sale.createdAt ? new Date((sale.createdAt as any).seconds * 1000).toLocaleDateString('pt-BR') : 'N/D')}
                       </TableCell>
                       <TableCell className="text-sm">{sale.clientName || "Não informado"}</TableCell>
                       <TableCell className="text-right font-medium text-sm">
                         {sale.totalAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </TableCell>
+                      <TableCell className="text-center text-sm">
+                        <Badge variant={sale.status === "Cancelada" ? "destructive" : "secondary"}>
+                          {sale.status}
+                        </Badge>
+                        {sale.status === "Cancelada" && sale.cancellationReason && (
+                            <p className="text-xs text-muted-foreground mt-1 truncate" title={sale.cancellationReason}>
+                                Motivo: {sale.cancellationReason}
+                            </p>
+                        )}
+                      </TableCell>
+                       <TableCell className="text-center space-x-1">
+                        <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={() => handlePrintSaleReceipt({
+                                saleId: sale.id,
+                                date: sale.createdAt instanceof Date ? format(sale.createdAt, "dd/MM/yyyy HH:mm", { locale: ptBR }) : new Date((sale.createdAt as any).seconds * 1000).toLocaleString('pt-BR'),
+                                clientName: sale.clientName,
+                                items: sale.items,
+                                paymentMethod: sale.paymentMethod,
+                                totalAmount: sale.totalAmount,
+                                status: sale.status,
+                                cancellationReason: sale.cancellationReason,
+                            })}
+                            title="Imprimir Comprovante"
+                        >
+                            <Printer className="h-4 w-4" />
+                        </Button>
+                        {sale.status !== "Cancelada" && (
+                          <Button 
+                            variant="destructive" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={() => handleOpenCancelDialog(sale.id)}
+                            disabled={cancelSaleMutation.isPending && cancelSaleMutation.variables?.saleId === sale.id}
+                            title="Cancelar Venda"
+                          >
+                            {cancelSaleMutation.isPending && cancelSaleMutation.variables?.saleId === sale.id 
+                                ? <Loader2 className="h-4 w-4 animate-spin"/> 
+                                : <Ban className="h-4 w-4" />}
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -568,6 +664,41 @@ export default function CounterSalesPage() {
           />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isCancelSaleDialogOpen} onOpenChange={setIsCancelSaleDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar Venda</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja cancelar esta venda? Esta ação não pode ser desfeita.
+              Por favor, informe o motivo do cancelamento abaixo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Label htmlFor="cancellationReason" className="mb-1 block">Motivo do Cancelamento (Obrigatório)</Label>
+            <Textarea
+              id="cancellationReason"
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              placeholder="Ex: Cliente se arrependeu, problema no pagamento, etc."
+              rows={3}
+            />
+            {!cancellationReason.trim() && <p className="text-xs text-destructive mt-1">O motivo é obrigatório.</p>}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSaleToCancelId(null)}>Não, manter venda</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmCancellation} 
+              disabled={!cancellationReason.trim() || cancelSaleMutation.isPending}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              {cancelSaleMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sim, Cancelar Venda
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
