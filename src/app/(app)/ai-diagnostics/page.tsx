@@ -143,20 +143,24 @@ export default function AiDiagnosticsPage() {
             <hr />
             <div>
               <h3 className="font-semibold text-lg mb-1">Peças Necessárias:</h3>
-              {results.partsNeeded.length > 0 ? (
+              {results.partsNeeded && results.partsNeeded.length > 0 ? (
                 <ul className="list-disc pl-5 space-y-1 text-sm">
                   {results.partsNeeded.map((part, index) => (
                     <li key={index}>{part}</li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground text-sm">Nenhuma peça específica identificada como necessária.</p>
+                <p className="text-muted-foreground text-sm">Nenhuma peça específica identificada ou informação indisponível.</p>
               )}
             </div>
             <hr />
             <div>
               <h3 className="font-semibold text-lg mb-1">Tempo Estimado de Reparo:</h3>
-              <p className="text-sm">{results.estimatedRepairTime || "Não estimado."}</p>
+              {results.estimatedRepairTime ? (
+                 <p className="text-sm">{results.estimatedRepairTime}</p>
+              ) : (
+                 <p className="text-muted-foreground text-sm">Tempo estimado não fornecido pela IA.</p>
+              )}
             </div>
           </CardContent>
         </Card>

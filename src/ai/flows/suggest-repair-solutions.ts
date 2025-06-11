@@ -22,8 +22,8 @@ export type SuggestRepairSolutionsInput = z.infer<typeof SuggestRepairSolutionsI
 
 const SuggestRepairSolutionsOutputSchema = z.object({
   suggestedSolutions: z.array(z.string()).describe('Uma lista de possíveis soluções para o problema.'),
-  partsNeeded: z.array(z.string()).describe('Uma lista de peças que podem ser necessárias para o reparo.'),
-  estimatedRepairTime: z.string().describe('Um tempo estimado de reparo para as soluções identificadas.'),
+  partsNeeded: z.array(z.string()).optional().describe('Uma lista de peças que podem ser necessárias para o reparo.'),
+  estimatedRepairTime: z.string().optional().describe('Um tempo estimado de reparo para as soluções identificadas.'),
 });
 export type SuggestRepairSolutionsOutput = z.infer<typeof SuggestRepairSolutionsOutputSchema>;
 
@@ -36,12 +36,12 @@ const prompt = ai.definePrompt({
   input: {schema: SuggestRepairSolutionsInputSchema},
   output: {schema: SuggestRepairSolutionsOutputSchema},
   prompt: `You are an expert phone repair technician with years of experience.
-Given the following problem description and phone model, suggest potential solutions, a list of parts that might be needed, and an estimated repair time.
+Given the following problem description and phone model, suggest potential solutions. If applicable, also provide a list of parts that might be needed and an estimated repair time.
 
 Problem Description: {{{problemDescription}}}
 Phone Model: {{{phoneModel}}}
 
-Respond concisely.`,
+Respond concisely. If certain information like parts or repair time isn't determinable, you can omit it.`,
 });
 
 const suggestRepairSolutionsFlow = ai.defineFlow(
@@ -55,3 +55,4 @@ const suggestRepairSolutionsFlow = ai.defineFlow(
     return output!;
   }
 );
+
