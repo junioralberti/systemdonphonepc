@@ -1,68 +1,73 @@
 
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent, useEffect } from "react";
+import { useState, useEffect } from "react";
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, CreditCard, DollarSign, Users } from "lucide-react";
+import { Activity, CreditCard, DollarSign, Users, Package, Wrench, ShoppingCart, BarChart3, BrainCircuit, Landmark, UserCog } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-// Imports relacionados aos dados do estabelecimento foram removidos pois a seção foi removida.
-// import { Building, Save, Loader2, UploadCloud, AlertTriangle, RotateCcw } from "lucide-react";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
-// import { Button } from "@/components/ui/button";
-// import { useToast } from "@/hooks/use-toast";
-// import Image from "next/image";
-// import { getEstablishmentSettings, saveEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
-// import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { getTotalSalesRevenue } from "@/services/salesService";
+import { getTotalCompletedServiceOrdersRevenue, getCountOfOpenServiceOrders } from "@/services/serviceOrderService";
+import { getClients } from "@/services/clientService";
+import type { Client } from "@/lib/schemas/client";
+import { navItems, type NavItem } from '@/config/nav';
+import { useAuth } from '@/context/auth-context';
 
 
 export default function DashboardPage() {
-  // const queryClient = useQueryClient(); // Removido pois não há mais mutations nesta página
-  // const { toast } = useToast(); // Removido pois não há mais interações que gerem toast nesta página
+  const { userRole } = useAuth();
+  const [isSettingUpDashboard, setIsSettingUpDashboard] = useState(true);
 
-  // States para os dados do estabelecimento foram removidos
-  // const [businessName, setBusinessName] = useState("DONPHONE INFORMÁTICA E CELULARES");
-  // ... e outros states relacionados
+  const { data: totalSalesRevenue, isLoading: isLoadingSalesRevenue, error: salesRevenueError } = useQuery<number, Error>({
+    queryKey: ["totalSalesRevenue"],
+    queryFn: getTotalSalesRevenue,
+  });
 
-  const [totalRevenue, setTotalRevenue] = useState<string>("N/D");
-  const [activeClients, setActiveClients] = useState<string>("N/D");
-  const [openServiceOrders, setOpenServiceOrders] = useState<string>("N/D");
-  const [pendingRepairs, setPendingRepairs] = useState<string>("N/D");
-  const [isLoadingDashboardStats, setIsLoadingDashboardStats] = useState(true);
+  const { data: totalOsRevenue, isLoading: isLoadingOsRevenue, error: osRevenueError } = useQuery<number, Error>({
+    queryKey: ["totalOsRevenue"],
+    queryFn: getTotalCompletedServiceOrdersRevenue,
+  });
 
-  // useQuery para establishmentSettings foi removido
-  // const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError, refetch: refetchEstablishmentSettings, isFetching: isFetchingSettings } = useQuery<EstablishmentSettings | null, Error>({
-  //   queryKey: ["establishmentSettings"],
-  //   queryFn: getEstablishmentSettings,
-  //    refetchOnWindowFocus: false,
-  // });
+  const { data: clients, isLoading: isLoadingClients, error: clientsError } = useQuery<Client[], Error>({
+    queryKey: ["clients"],
+    queryFn: getClients,
+  });
 
+  const { data: openServiceOrdersCount, isLoading: isLoadingOpenOsCount, error: openOsCountError } = useQuery<number, Error>({
+    queryKey: ["openServiceOrdersCount"],
+    queryFn: getCountOfOpenServiceOrders,
+  });
+  
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoadingDashboardStats(false), 1200);
-    return () => clearTimeout(timer);
-    // TODO: Implementar busca real de dados para os cards do dashboard
-  }, []);
+    const dataLoading = isLoadingSalesRevenue || isLoadingOsRevenue || isLoadingClients || isLoadingOpenOsCount;
+    if (!dataLoading) {
+      setIsSettingUpDashboard(false);
+    }
+  }, [isLoadingSalesRevenue, isLoadingOsRevenue, isLoadingClients, isLoadingOpenOsCount]);
 
+  const combinedTotalRevenue = (totalSalesRevenue || 0) + (totalOsRevenue || 0);
+  const activeClientsCount = clients?.length || 0;
 
-  // useEffect para popular os campos do formulário de estabelecimento foi removido
-  // useEffect(() => { ... });
-
-  // useEffect para tratar erro de carregamento de settings foi removido
-  // useEffect(() => { ... });
-
-  // saveSettingsMutation foi removido
-  // const saveSettingsMutation = useMutation({ ... });
-
-  // Handlers para o formulário de estabelecimento foram removidos
-  // const handleLogoChange = (e: ChangeEvent<HTMLInputElement>) => { ... };
-  // const handleRemoveLogo = () => { ... };
-  // const handleSaveEstablishmentData = async (e: FormEvent) => { ... };
-
-  const renderStatValue = (value: string, isLoading: boolean) => {
-    if (isLoading) return <Skeleton className="h-7 w-24 rounded" />;
-    if (value === "N/D") return <div className="text-2xl font-bold text-muted-foreground/80">{value}</div>;
+  const renderStatValue = (value: number | string, isLoading: boolean, isCurrency: boolean = false, error?: Error | null) => {
+    if (isLoading || isSettingUpDashboard) return <Skeleton className="h-7 w-24 rounded" />;
+    if (error) return <div className="text-2xl font-bold text-destructive">Erro</div>;
+    if (typeof value === 'number' && isCurrency) return <div className="text-2xl font-bold">R$ {value.toFixed(2).replace('.', ',')}</div>;
     return <div className="text-2xl font-bold">{value}</div>;
   };
+  
+  const renderStatSubtitle = (isLoading: boolean, error?: Error | null, defaultText: string = "Dados atualizados.") => {
+     if (isLoading || isSettingUpDashboard) return <Skeleton className="h-3 w-32" />;
+     if (error) return <span className="text-xs text-destructive">{error.message}</span>;
+     return defaultText;
+  };
+
+  // Filter navItems for dashboard display (exclude settings, logout, users for non-admin)
+  const dashboardNavItems = navItems.filter(item => 
+    !item.isBottom && 
+    item.href !== '/dashboard' && // Don't link to dashboard from dashboard
+    (item.role ? item.role === userRole : true)
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -72,15 +77,15 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Receita Total
+              Receita Total Bruta
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {renderStatValue(totalRevenue, isLoadingDashboardStats)}
-            <div className="text-xs text-muted-foreground">
-              {isLoadingDashboardStats ? <Skeleton className="h-3 w-32" /> : "Cálculo pendente."}
-            </div>
+            {renderStatValue(combinedTotalRevenue, isSettingUpDashboard, true, salesRevenueError || osRevenueError)}
+            <p className="text-xs text-muted-foreground">
+                {renderStatSubtitle(isSettingUpDashboard, salesRevenueError || osRevenueError, "Vendas + OS Concluídas/Entregues")}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -91,10 +96,10 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {renderStatValue(activeClients, isLoadingDashboardStats)}
-             <div className="text-xs text-muted-foreground">
-              {isLoadingDashboardStats ? <Skeleton className="h-3 w-28" /> : "Cálculo pendente."}
-            </div>
+            {renderStatValue(activeClientsCount, isSettingUpDashboard, false, clientsError)}
+             <p className="text-xs text-muted-foreground">
+                {renderStatSubtitle(isSettingUpDashboard, clientsError, "Total de clientes cadastrados.")}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -103,10 +108,10 @@ export default function DashboardPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {renderStatValue(openServiceOrders, isLoadingDashboardStats)}
-             <div className="text-xs text-muted-foreground">
-              {isLoadingDashboardStats ? <Skeleton className="h-3 w-24" /> : "Cálculo pendente."}
-            </div>
+             {renderStatValue(openServiceOrdersCount ?? "0", isSettingUpDashboard, false, openOsCountError)}
+             <p className="text-xs text-muted-foreground">
+                {renderStatSubtitle(isSettingUpDashboard, openOsCountError, "OS em Aberto, Em Andamento ou Aguardando Peça.")}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -115,15 +120,41 @@ export default function DashboardPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {renderStatValue(pendingRepairs, isLoadingDashboardStats)}
-            <div className="text-xs text-muted-foreground">
-             {isLoadingDashboardStats ? <Skeleton className="h-3 w-36" /> : "Cálculo pendente."}
-            </div>
+            {renderStatValue(openServiceOrdersCount ?? "0", isSettingUpDashboard, false, openOsCountError)}
+            <p className="text-xs text-muted-foreground">
+             {renderStatSubtitle(isSettingUpDashboard, openOsCountError, "Total de OS com reparo não finalizado.")}
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Card de Dados do Estabelecimento foi removido daqui */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Acesso Rápido aos Módulos</CardTitle>
+          <CardDescription>Navegue rapidamente para as seções principais do sistema.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {dashboardNavItems.map((item) => (
+            <Link href={item.href} key={item.href} passHref legacyBehavior>
+              <a className="block hover:no-underline">
+                <Card className="hover:shadow-md hover:border-primary/50 transition-all duration-200 h-full">
+                  <CardHeader className="flex flex-row items-center gap-3 space-y-0 p-4">
+                    <item.icon className="h-6 w-6 text-primary" />
+                    <CardTitle className="text-base font-semibold">{item.title}</CardTitle>
+                  </CardHeader>
+                  {/* 
+                  <CardContent className="p-4 pt-0">
+                    <p className="text-xs text-muted-foreground">
+                      {`Gerenciar ${item.title.toLowerCase()} do sistema.`}
+                    </p>
+                  </CardContent>
+                  */}
+                </Card>
+              </a>
+            </Link>
+          ))}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -137,3 +168,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

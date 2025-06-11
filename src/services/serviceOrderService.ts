@@ -12,7 +12,8 @@ import {
   Timestamp,
   type DocumentData,
   type QueryDocumentSnapshot,
-  where
+  where,
+  getCountFromServer // Import getCountFromServer for efficient counting
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -159,18 +160,20 @@ export const getServiceOrdersByDateRangeAndStatus = async (
   return querySnapshot.docs.map(serviceOrderFromDoc);
 };
 
-export const getServiceOrdersCountByStatus = async (status: ServiceOrderStatus): Promise<number> => {
-  const q = query(collection(db, SERVICE_ORDERS_COLLECTION), where('status', '==', status));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.size;
+export const getCountOfOpenServiceOrders = async (): Promise<number> => {
+  const openStatuses: ServiceOrderStatus[] = ["Aberta", "Em andamento", "Aguardando peça"];
+  const q = query(collection(db, SERVICE_ORDERS_COLLECTION), where('status', 'in', openStatuses));
+  const snapshot = await getCountFromServer(q);
+  return snapshot.data().count;
 };
 
 export const getTotalCompletedServiceOrdersRevenue = async (): Promise<number> => {
   const q = query(collection(db, SERVICE_ORDERS_COLLECTION), where('status', 'in', ['Concluída', 'Entregue']));
   const querySnapshot = await getDocs(q);
   let totalRevenue = 0;
-  querySnapshot.forEach((doc) => {
-    totalRevenue += (doc.data().grandTotalValue as number) || 0;
+  querySnapshot.forEach((docSnap) => { // Renamed doc to docSnap
+    totalRevenue += (docSnap.data().grandTotalValue as number) || 0;
   });
   return totalRevenue;
 };
+

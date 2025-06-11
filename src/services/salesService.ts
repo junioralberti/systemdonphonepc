@@ -87,8 +87,9 @@ export const getTotalSalesRevenue = async (): Promise<number> => {
   const q = query(collection(db, SALES_COLLECTION), where('status', '==', 'Concluída'));
   const querySnapshot = await getDocs(q);
   let totalRevenue = 0;
-  querySnapshot.forEach((doc) => {
-    totalRevenue += (doc.data().totalAmount as number) || 0;
+  querySnapshot.forEach((docSnap) => { // Renamed doc to docSnap to avoid conflict
+    totalRevenue += (docSnap.data().totalAmount as number) || 0;
   });
   return totalRevenue;
 };
+
