@@ -41,7 +41,8 @@ Given the following problem description and phone model, suggest potential solut
 Problem Description: {{{problemDescription}}}
 Phone Model: {{{phoneModel}}}
 
-Respond concisely. If certain information like parts or repair time isn't determinable, you can omit it.`,
+Respond concisely. If certain information like parts or repair time isn't determinable, you can omit it.
+Responda em Português do Brasil.`,
 });
 
 const suggestRepairSolutionsFlow = ai.defineFlow(
