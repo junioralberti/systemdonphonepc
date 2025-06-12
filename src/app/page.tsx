@@ -13,16 +13,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { UserForm } from '@/components/users/user-form';
 import { addUser, getUserById } from '@/services/userService';
-import type { User, CreateUserFormData } from '@/lib/schemas/user'; // Import CreateUserFormData
+import type { User, CreateUserFormData } from '@/lib/schemas/user';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation } from '@tanstack/react-query';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('teste@donphone.com');
-  const [password, setPassword] = useState('123456');
-  const { login, performMockLogin } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -32,12 +32,6 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setIsLoggingIn(true);
-
-    if (email === 'teste@donphone.com' && password === '123456') {
-      performMockLogin('admin');
-      setIsLoggingIn(false);
-      return;
-    }
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -49,7 +43,7 @@ export default function LoginPage() {
           login(userDataFromFirestore.role as 'admin' | 'user', firebaseUser);
         } else {
           setError('Não foi possível determinar a função do usuário. Contate o suporte.');
-          await auth.signOut();
+          await auth.signOut(); // Make sure to sign out if role check fails
         }
       } else {
         setError('Usuário não encontrado ou erro inesperado.');
@@ -67,7 +61,7 @@ export default function LoginPage() {
   };
 
   const addUserMutation = useMutation({
-    mutationFn: (formData: CreateUserFormData | User) => addUser(formData as User), // addUser expects User
+    mutationFn: (formData: CreateUserFormData | User) => addUser(formData as User),
     onSuccess: async (uid, formData) => {
       toast({
         title: "Cadastro Realizado!",
@@ -86,22 +80,31 @@ export default function LoginPage() {
   });
 
   const handleRegisterUser = async (formData: CreateUserFormData | User) => {
-    // formData here will be CreateUserFormData from the form which is compatible with User type for addUser
     await addUserMutation.mutateAsync(formData);
   };
 
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="mb-8">
+        <Image
+          src="/donphone-login-visual.png" 
+          alt="DonPhone Visual Login"
+          width={128}
+          height={128}
+          data-ai-hint="company brand illustration"
+          priority 
+        />
+      </div>
       <Card className="w-full max-w-sm shadow-xl">
         <CardHeader className="items-center text-center">
           <div className="mb-4">
             <Image
               src="/donphone-logo.png"
-              alt="DonPhone Logo"
-              width={64} 
-              height={64}
-              data-ai-hint="company logo"
+              alt="DonPhone Logo Pequeno"
+              width={48} 
+              height={48}
+              data-ai-hint="company logo small"
               className="mx-auto"
             />
           </div>
@@ -182,3 +185,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
