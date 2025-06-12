@@ -92,8 +92,8 @@ export default function LoginPage() {
             <Image
               src="/donphone-login-visual.png" 
               alt="DonPhone Visual"
-              width={80} 
-              height={80}
+              width={240} 
+              height={240}
               data-ai-hint="company brand illustration"
               className="mx-auto"
               priority
