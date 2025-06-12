@@ -43,7 +43,7 @@ export default function LoginPage() {
           login(userDataFromFirestore.role as 'admin' | 'user', firebaseUser);
         } else {
           setError('Não foi possível determinar a função do usuário. Contate o suporte.');
-          await auth.signOut(); // Make sure to sign out if role check fails
+          await auth.signOut(); 
         }
       } else {
         setError('Usuário não encontrado ou erro inesperado.');
@@ -86,26 +86,17 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <div className="mb-8">
-        <Image
-          src="/donphone-login-visual.png" 
-          alt="DonPhone Visual Login"
-          width={128}
-          height={128}
-          data-ai-hint="company brand illustration"
-          priority 
-        />
-      </div>
       <Card className="w-full max-w-sm shadow-xl">
         <CardHeader className="items-center text-center">
           <div className="mb-4">
             <Image
-              src="/donphone-logo.png"
-              alt="DonPhone Logo Pequeno"
-              width={48} 
-              height={48}
-              data-ai-hint="company logo small"
+              src="/donphone-login-visual.png" 
+              alt="DonPhone Visual"
+              width={80} 
+              height={80}
+              data-ai-hint="company brand illustration"
               className="mx-auto"
+              priority
             />
           </div>
           <CardTitle className="font-headline text-3xl">Sistema DonPhone</CardTitle>
@@ -185,5 +176,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
