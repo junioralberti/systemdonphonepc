@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 export const ProviderSchema = z.object({
   id: z.string().optional(), // Firestore ID
+  userId: z.string().optional(), // ID of the user who owns this provider
   name: z.string().min(2, { message: "O nome do fornecedor deve ter pelo menos 2 caracteres." }),
   contactPerson: z.string().optional().or(z.literal('')),
   email: z.string().email({ message: "E-mail inválido." }).optional().or(z.literal('')),
