@@ -9,11 +9,11 @@ import {
   getDocs,
   query,
   orderBy,
-  where,
+  where, // Keep for status/date filtering
   doc,
   updateDoc
 } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase'; // Import auth
+import { db, auth } from '@/lib/firebase';
 import type { Sale, SaleInput, SaleStatus, PaymentMethod, CartItemInput } from '@/lib/schemas/sale';
 
 export type { PaymentMethod, CartItemInput, SaleInput, Sale, SaleStatus };
@@ -24,7 +24,6 @@ const saleFromDoc = (docSnap: QueryDocumentSnapshot<DocumentData>): Sale => {
   const data = docSnap.data();
   return {
     id: docSnap.id,
-    userId: data.userId, // Include userId
     clientName: data.clientName || null,
     items: data.items || [],
     paymentMethod: data.paymentMethod || null,
@@ -36,27 +35,25 @@ const saleFromDoc = (docSnap: QueryDocumentSnapshot<DocumentData>): Sale => {
   };
 };
 
-export const addSale = async (saleData: Omit<SaleInput, 'userId'>): Promise<string> => {
-  const user = auth.currentUser;
-  if (!user) throw new Error("Usuário não autenticado.");
+export const addSale = async (saleData: SaleInput): Promise<string> => {
+  // const user = auth.currentUser;
+  // if (!user) throw new Error("Usuário não autenticado.");
 
   const docRef = await addDoc(collection(db, SALES_COLLECTION), {
     ...saleData,
-    userId: user.uid, // Add userId
     status: "Concluída",
     createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(), // Add updatedAt for consistency
   });
   return docRef.id; 
 };
 
 export const getSales = async (): Promise<Sale[]> => {
-  const user = auth.currentUser;
-  if (!user) return [];
+  // const user = auth.currentUser;
+  // if (!user) return [];
 
   const q = query(
     collection(db, SALES_COLLECTION),
-    where('userId', '==', user.uid), // Filter by userId
     orderBy('createdAt', 'desc')
   );
   const querySnapshot = await getDocs(q);
@@ -65,7 +62,6 @@ export const getSales = async (): Promise<Sale[]> => {
 
 export const cancelSale = async (saleId: string, reason: string): Promise<void> => {
   const saleRef = doc(db, SALES_COLLECTION, saleId);
-  // Firestore rules will verify ownership or admin role
   await updateDoc(saleRef, {
     status: "Cancelada",
     cancellationReason: reason,
@@ -77,15 +73,14 @@ export const cancelSale = async (saleId: string, reason: string): Promise<void> 
 
 
 export const getSalesByDateRange = async (startDate: Date, endDate: Date): Promise<Sale[]> => {
-  const user = auth.currentUser;
-  if (!user) return [];
+  // const user = auth.currentUser;
+  // if (!user) return [];
 
   const startTimestamp = Timestamp.fromDate(startDate);
   const endTimestamp = Timestamp.fromDate(new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999));
 
   const q = query(
     collection(db, SALES_COLLECTION),
-    where('userId', '==', user.uid), // Filter by userId
     where('createdAt', '>=', startTimestamp),
     where('createdAt', '<=', endTimestamp),
     orderBy('createdAt', 'desc')
@@ -95,12 +90,11 @@ export const getSalesByDateRange = async (startDate: Date, endDate: Date): Promi
 };
 
 export const getTotalSalesRevenue = async (): Promise<number> => {
-  const user = auth.currentUser;
-  if (!user) return 0;
+  // const user = auth.currentUser;
+  // if (!user) return 0;
 
   const q = query(
     collection(db, SALES_COLLECTION),
-    where('userId', '==', user.uid), // Filter by userId
     where('status', '==', 'Concluída')
   );
   const querySnapshot = await getDocs(q);

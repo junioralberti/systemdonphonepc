@@ -6,8 +6,15 @@ service firebase.storage {
     // Allow public read for the specific logo file
     match /establishment_logo/app_logo {
       allow read: if true;
-      // CHANGED: Allow admin or user to write (upload/update/delete)
+      // Allow admin or user to write (upload/update/delete)
       allow write: if request.auth != null && (request.auth.token.role == 'admin' || request.auth.token.role == 'user');
+    }
+
+    // Product Images
+    // Path no longer includes userId
+    match /product_images/{productId}/{allPaths=**} {
+      allow read: if true; // Public read for product images
+      allow write: if request.auth != null; // Allow authenticated users to write (upload/update/delete)
     }
 
     // Default: Deny all other reads/writes to other paths for safety

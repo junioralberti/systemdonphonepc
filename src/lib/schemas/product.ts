@@ -3,7 +3,6 @@ import { z } from 'zod';
 
 export const ProductSchema = z.object({
   id: z.string().optional(), // Firestore ID
-  userId: z.string().optional(), // ID of the user who owns this product
   name: z.string().min(2, { message: "O nome do produto deve ter pelo menos 2 caracteres." }),
   sku: z.string().min(1, { message: "SKU é obrigatório." }),
   price: z.preprocess(

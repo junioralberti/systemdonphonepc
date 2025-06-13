@@ -15,7 +15,6 @@ export type CartItemInput = z.infer<typeof CartItemInputSchema>;
 
 
 export const SaleInputSchema = z.object({
-  userId: z.string().optional(), // ID of the user who owns this sale
   clientName: z.string().nullable(),
   items: z.array(CartItemInputSchema),
   paymentMethod: z.string().nullable().transform(val => val as PaymentMethod | null),

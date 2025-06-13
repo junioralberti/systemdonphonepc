@@ -9,12 +9,12 @@ import {
   serverTimestamp,
   query,
   orderBy,
-  where,
+  where, // Keep for filtering by date/category/status
   Timestamp,
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase'; // Import auth
+import { db, auth } from '@/lib/firebase';
 import type { Expense, ExpenseStatus, ExpenseCategory } from '@/lib/schemas/expense';
 import { parseISO } from 'date-fns';
 
@@ -24,7 +24,6 @@ const expenseFromDoc = (docSnap: QueryDocumentSnapshot<DocumentData>): Expense =
   const data = docSnap.data();
   return {
     id: docSnap.id,
-    userId: data.userId, // Include userId
     title: data.title || '',
     amount: data.amount || 0,
     dueDate: data.dueDate instanceof Timestamp ? data.dueDate.toDate() : (typeof data.dueDate === 'string' ? parseISO(data.dueDate) : new Date()),
@@ -37,13 +36,12 @@ const expenseFromDoc = (docSnap: QueryDocumentSnapshot<DocumentData>): Expense =
   };
 };
 
-export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt' | 'updatedAt' | 'dueDate' | 'paymentDate' | 'userId'> & { dueDate: Date; paymentDate?: Date | null }): Promise<string> => {
-  const user = auth.currentUser;
-  if (!user) throw new Error("Usuário não autenticado.");
+export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt' | 'updatedAt' | 'dueDate' | 'paymentDate'> & { dueDate: Date; paymentDate?: Date | null }): Promise<string> => {
+  // const user = auth.currentUser;
+  // if (!user) throw new Error("Usuário não autenticado.");
   
   const docRef = await addDoc(collection(db, EXPENSES_COLLECTION), {
     ...expenseData,
-    userId: user.uid, // Add userId
     dueDate: Timestamp.fromDate(expenseData.dueDate),
     paymentDate: expenseData.paymentDate ? Timestamp.fromDate(expenseData.paymentDate) : null,
     createdAt: serverTimestamp(),
@@ -60,15 +58,15 @@ interface GetExpensesFilters {
 }
 
 export const getExpenses = async (filters?: GetExpensesFilters): Promise<Expense[]> => {
-  const user = auth.currentUser;
-  if (!user) return [];
+  // const user = auth.currentUser;
+  // if (!user) return [];
 
-  let conditions = [where('userId', '==', user.uid)]; // Always filter by userId
+  let conditions = []; // No longer start with userId filter
 
-  if (filters?.status && filters.status !== "all") { // Ensure "all" doesn't break query
+  if (filters?.status && filters.status !== "all") {
     conditions.push(where('status', '==', filters.status));
   }
-  if (filters?.category && filters.category !== "all") { // Ensure "all" doesn't break query
+  if (filters?.category && filters.category !== "all") {
     conditions.push(where('category', '==', filters.category));
   }
 
@@ -91,15 +89,14 @@ export const getExpenses = async (filters?: GetExpensesFilters): Promise<Expense
 };
 
 
-export const updateExpense = async (id: string, expenseData: Partial<Omit<Expense, 'id' | 'createdAt' | 'updatedAt' | 'dueDate' | 'paymentDate' | 'userId'> & { dueDate?: Date; paymentDate?: Date | null | undefined }>): Promise<void> => {
+export const updateExpense = async (id: string, expenseData: Partial<Omit<Expense, 'id' | 'createdAt' | 'updatedAt' | 'dueDate' | 'paymentDate'> & { dueDate?: Date; paymentDate?: Date | null | undefined }>): Promise<void> => {
   const expenseRef = doc(db, EXPENSES_COLLECTION, id);
-  // Firestore rules will verify ownership or admin role
   
   const dataToUpdate: Partial<DocumentData> = { ...expenseData, updatedAt: serverTimestamp() };
   if (expenseData.dueDate) {
     dataToUpdate.dueDate = Timestamp.fromDate(expenseData.dueDate);
   }
-  if (expenseData.hasOwnProperty('paymentDate')) {
+  if (expenseData.hasOwnProperty('paymentDate')) { // Check if paymentDate is explicitly being set (even to null)
      dataToUpdate.paymentDate = expenseData.paymentDate ? Timestamp.fromDate(expenseData.paymentDate) : null;
   }
 
@@ -108,13 +105,12 @@ export const updateExpense = async (id: string, expenseData: Partial<Omit<Expens
 
 export const deleteExpense = async (id: string): Promise<void> => {
   const expenseRef = doc(db, EXPENSES_COLLECTION, id);
-  // Firestore rules will verify ownership or admin role
   await deleteDoc(expenseRef);
 };
 
 export const getExpensesByDateRange = async (startDate: Date, endDate: Date): Promise<Expense[]> => {
-  const user = auth.currentUser;
-  if (!user) return [];
+  // const user = auth.currentUser;
+  // if (!user) return [];
 
   const startTimestamp = Timestamp.fromDate(startDate);
   const endOfDayEndDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999);
@@ -122,7 +118,6 @@ export const getExpensesByDateRange = async (startDate: Date, endDate: Date): Pr
 
   const q = query(
     collection(db, EXPENSES_COLLECTION),
-    where('userId', '==', user.uid), // Filter by userId
     where('dueDate', '>=', startTimestamp),
     where('dueDate', '<=', endTimestamp),
     orderBy('dueDate', 'asc')

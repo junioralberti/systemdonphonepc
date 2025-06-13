@@ -27,7 +27,6 @@ export type ExpenseStatus = z.infer<typeof ExpenseStatusSchema>;
 
 export const ExpenseSchema = z.object({
   id: z.string().optional(), // Firestore ID
-  userId: z.string().optional(), // ID of the user who owns this expense
   title: z.string().min(2, { message: "O título da despesa deve ter pelo menos 2 caracteres." }),
   amount: z.preprocess(
     (val) => (typeof val === 'string' ? parseFloat(val.replace(',', '.')) : val),
