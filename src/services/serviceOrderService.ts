@@ -12,7 +12,7 @@ import {
   Timestamp,
   type DocumentData,
   type QueryDocumentSnapshot,
-  where, // Keep for status filtering, but not userId
+  where, // Keep for status filtering
   getCountFromServer
 } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
@@ -48,6 +48,7 @@ export interface ServiceOrderInput {
   serviceManualValue: number;
   additionalSoldProducts: SoldProductItemInput[];
   grandTotalValue: number;
+  // userId removed
 }
 
 export interface ServiceOrder extends ServiceOrderInput {
@@ -55,6 +56,7 @@ export interface ServiceOrder extends ServiceOrderInput {
   osNumber: string;
   openingDate: Date | Timestamp;
   updatedAt?: Date | Timestamp;
+  // userId removed
 }
 
 const SERVICE_ORDERS_COLLECTION = 'serviceOrders';
@@ -63,7 +65,7 @@ const serviceOrderFromDoc = (docSnap: QueryDocumentSnapshot<DocumentData>): Serv
   const data = docSnap.data();
   return {
     id: docSnap.id,
-    osNumber: data.osNumber || \`OS-\${docSnap.id.substring(0,6).toUpperCase()}\`,
+    osNumber: data.osNumber || `OS-${docSnap.id.substring(0,6).toUpperCase()}`,
     deliveryForecastDate: data.deliveryForecastDate || null,
     status: data.status || "Aberta",
     responsibleTechnicianName: data.responsibleTechnicianName || null,
@@ -86,6 +88,7 @@ const serviceOrderFromDoc = (docSnap: QueryDocumentSnapshot<DocumentData>): Serv
     grandTotalValue: data.grandTotalValue || 0,
     openingDate: (data.openingDate instanceof Timestamp) ? data.openingDate.toDate() : (data.openingDate || new Date()),
     updatedAt: (data.updatedAt instanceof Timestamp) ? data.updatedAt.toDate() : data.updatedAt,
+    // userId: data.userId || '', // userId removed
   };
 };
 
@@ -94,17 +97,18 @@ const generateOsNumber = async (): Promise<string> => {
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const sequence = Date.now().toString().slice(-6); 
-    return \`OS-\${year}\${month}-\${sequence}\`;
+    return `OS-${year}${month}-${sequence}`;
 };
 
 
 export const addServiceOrder = async (orderData: ServiceOrderInput): Promise<string> => {
-  // const user = auth.currentUser;
-  // if (!user) throw new Error("Usuário não autenticado.");
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error("Usuário não autenticado.");
 
   const osNumber = await generateOsNumber();
   const docRef = await addDoc(collection(db, SERVICE_ORDERS_COLLECTION), {
     ...orderData,
+    // userId: currentUser.uid, // userId removed
     osNumber: osNumber,
     openingDate: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -113,18 +117,19 @@ export const addServiceOrder = async (orderData: ServiceOrderInput): Promise<str
 };
 
 export const getServiceOrders = async (): Promise<ServiceOrder[]> => {
-  // const user = auth.currentUser;
-  // if (!user) return [];
+  const currentUser = auth.currentUser;
+  if (!currentUser) return [];
 
   const q = query(
     collection(db, SERVICE_ORDERS_COLLECTION),
+    // where('userId', '==', currentUser.uid), // userId removed
     orderBy('openingDate', 'desc')
   );
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(serviceOrderFromDoc);
 };
 
-export const updateServiceOrder = async (id: string, orderData: Partial<Omit<ServiceOrder, 'id' | 'osNumber' | 'openingDate'>>): Promise<void> => {
+export const updateServiceOrder = async (id: string, orderData: Partial<Omit<ServiceOrder, 'id' | 'osNumber' | 'openingDate' | 'userId'>>): Promise<void> => {
   const orderRef = doc(db, SERVICE_ORDERS_COLLECTION, id);
   await updateDoc(orderRef, {
     ...orderData,
@@ -143,10 +148,12 @@ export const getServiceOrdersByDateRangeAndStatus = async (
   endDate?: Date, 
   status?: ServiceOrderStatus | "Todos"
 ): Promise<ServiceOrder[]> => {
-  // const user = auth.currentUser;
-  // if (!user) return [];
+  const currentUser = auth.currentUser;
+  if (!currentUser) return [];
 
-  let conditions = [];
+  let conditions = [
+    // where('userId', '==', currentUser.uid) // userId removed
+  ];
   if (startDate) {
     conditions.push(where('openingDate', '>=', Timestamp.fromDate(startDate)));
   }
@@ -168,12 +175,13 @@ export const getServiceOrdersByDateRangeAndStatus = async (
 };
 
 export const getCountOfOpenServiceOrders = async (): Promise<number> => {
-  // const user = auth.currentUser;
-  // if (!user) return 0;
+  const currentUser = auth.currentUser;
+  if (!currentUser) return 0;
 
   const openStatuses: ServiceOrderStatus[] = ["Aberta", "Em andamento", "Aguardando peça"];
   const q = query(
     collection(db, SERVICE_ORDERS_COLLECTION),
+    // where('userId', '==', currentUser.uid), // userId removed
     where('status', 'in', openStatuses)
   );
   const snapshot = await getCountFromServer(q);
@@ -181,11 +189,12 @@ export const getCountOfOpenServiceOrders = async (): Promise<number> => {
 };
 
 export const getTotalCompletedServiceOrdersRevenue = async (): Promise<number> => {
-  // const user = auth.currentUser;
-  // if (!user) return 0;
+  const currentUser = auth.currentUser;
+  if (!currentUser) return 0;
 
   const q = query(
     collection(db, SERVICE_ORDERS_COLLECTION),
+    // where('userId', '==', currentUser.uid), // userId removed
     where('status', 'in', ['Concluída', 'Entregue'])
   );
   const querySnapshot = await getDocs(q);
@@ -195,3 +204,4 @@ export const getTotalCompletedServiceOrdersRevenue = async (): Promise<number> =
   });
   return totalRevenue;
 };
+
