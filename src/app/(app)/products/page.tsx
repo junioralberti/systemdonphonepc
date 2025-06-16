@@ -116,15 +116,15 @@ export default function ProductsPage() {
       {[...Array(4)].map((_, i) => (
          <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
           <div className="flex items-center gap-4 w-full">
-            <Skeleton className="h-12 w-12 rounded-md" />
+            <Skeleton className="h-12 w-12 rounded-md bg-muted/50" />
             <div className="space-y-1.5 w-full">
-              <Skeleton className="h-5 w-1/2 rounded" />
-              <Skeleton className="h-3 w-1/4 rounded" />
+              <Skeleton className="h-5 w-1/2 rounded bg-muted/50" />
+              <Skeleton className="h-3 w-1/4 rounded bg-muted/50" />
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Skeleton className="h-9 w-9 rounded-md" />
-            <Skeleton className="h-9 w-9 rounded-md" />
+            <Skeleton className="h-9 w-9 rounded-md bg-muted/50" />
+            <Skeleton className="h-9 w-9 rounded-md bg-muted/50" />
           </div>
         </div>
       ))}
@@ -134,7 +134,7 @@ export default function ProductsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-headline text-3xl font-semibold">Gerenciamento de Produtos</h1>
+        <h1 className="font-headline text-3xl font-semibold text-foreground">Gerenciamento de Produtos</h1>
         <Dialog open={isAddProductDialogOpen} onOpenChange={(isOpen) => {
           setIsAddProductDialogOpen(isOpen);
           if (!isOpen) {
@@ -142,7 +142,7 @@ export default function ProductsPage() {
           }
         }}>
           <DialogTrigger asChild>
-            <Button onClick={openAddDialog}>
+            <Button onClick={openAddDialog} className="bg-accent hover:bg-accent/90 text-accent-foreground">
               <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Novo Produto
             </Button>
           </DialogTrigger>

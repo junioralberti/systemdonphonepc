@@ -49,9 +49,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider defaultOpen>
-      <Sidebar>
+      <Sidebar className="bg-sidebar-background text-sidebar-foreground border-r border-sidebar-border">
         <SidebarHeader className="p-4 border-b border-sidebar-border">
-          <Link href="/dashboard" className="flex items-center gap-2 text-xl font-semibold text-primary">
+          <Link href="/dashboard" className="flex items-center gap-2 text-xl font-semibold text-sidebar-foreground">
             <span className="font-headline">DonPhone</span>
           </Link>
         </SidebarHeader>
@@ -63,6 +63,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   asChild
                   isActive={pathname.startsWith(item.href)}
                   tooltip={{ children: item.title, className: "text-xs" }}
+                  className="data-[active=true]:text-sidebar-primary data-[active=true]:bg-sidebar-accent hover:text-sidebar-primary hover:bg-sidebar-accent"
                 >
                   <Link href={item.href}>
                     <item.icon />
@@ -81,6 +82,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   asChild
                   isActive={pathname.startsWith(item.href)}
                   tooltip={{ children: item.title, className: "text-xs" }}
+                  className="data-[active=true]:text-sidebar-primary data-[active=true]:bg-sidebar-accent hover:text-sidebar-primary hover:bg-sidebar-accent"
                 >
                   <Link href={item.href}>
                     <item.icon />
@@ -90,7 +92,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </SidebarMenuItem>
             ))}
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={logout} tooltip={{ children: "Sair", className: "text-xs" }}>
+              <SidebarMenuButton onClick={logout} tooltip={{ children: "Sair", className: "text-xs" }} className="hover:text-sidebar-primary hover:bg-sidebar-accent">
                 <LogOut />
                 <span>Sair</span>
               </SidebarMenuButton>
@@ -99,21 +101,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-4">
-           <SidebarTrigger className="md:hidden" />
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-4">
+           <SidebarTrigger className="md:hidden text-foreground hover:text-primary" />
            <div className="flex-1">
              {/* Breadcrumbs or page title can go here */}
            </div>
            <div className="flex items-center gap-2">
-             <Button variant="ghost" size="icon" onClick={() => setIsCalculatorOpen(true)} aria-label="Abrir Calculadora">
+             <Button variant="ghost" size="icon" onClick={() => setIsCalculatorOpen(true)} aria-label="Abrir Calculadora" className="text-muted-foreground hover:text-primary">
                 <Calculator className="h-5 w-5" />
              </Button>
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative flex items-center gap-2 px-2 sm:px-3">
+                <Button variant="ghost" className="relative flex items-center gap-2 px-2 sm:px-3 text-foreground hover:bg-accent hover:text-accent-foreground">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src="https://placehold.co/100x100.png" alt="Avatar do Usuário" data-ai-hint="user avatar" />
-                    <AvatarFallback>{getInitials(userRole === 'admin' ? "Administrador" : "Usuário Padrão")}</AvatarFallback>
+                    <AvatarFallback className="bg-muted text-muted-foreground">{getInitials(userRole === 'admin' ? "Administrador" : "Usuário Padrão")}</AvatarFallback>
                   </Avatar>
                   <span className="hidden sm:inline">{userRole === 'admin' ? "Administrador" : "Usuário Padrão"}</span>
                   <ChevronDown className="h-4 w-4 hidden sm:inline" />
@@ -162,12 +164,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-2">
               {/* Simple SVG for WhatsApp icon */}
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path><path d="M19.07 4.93A10 10 0 1 1 4.93 19.07"></path></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path><path d="M19.07 4.93A10 10 0 1 1 4.93 19.07"></path></svg>
               <a
                 href="https://wa.me/5549991287685"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-green-600 hover:underline"
+                className="text-sm text-primary hover:underline"
               >
                 (49) 99128-7685 (WhatsApp)
               </a>

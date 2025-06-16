@@ -388,14 +388,15 @@ export default function ServiceOrdersPage() {
   };
   
   const getStatusColor = (status: ServiceOrderStatus) => {
+    // Using text and border colors from the new theme
     switch (status) {
-      case "Aberta": return "bg-yellow-100 text-yellow-800 border border-yellow-300";
-      case "Em andamento": return "bg-blue-100 text-blue-800 border border-blue-300";
-      case "Aguardando peça": return "bg-orange-100 text-orange-800 border border-orange-300";
-      case "Concluída": return "bg-green-100 text-green-800 border border-green-300";
-      case "Entregue": return "bg-teal-100 text-teal-800 border border-teal-300";
-      case "Cancelada": return "bg-red-100 text-red-800 border border-red-300";
-      default: return "bg-gray-100 text-gray-800 border border-gray-300";
+      case "Aberta": return "bg-primary/10 text-primary border-primary/30";
+      case "Em andamento": return "bg-blue-500/10 text-blue-400 border-blue-500/30"; // Example, assuming blue is for "in progress"
+      case "Aguardando peça": return "bg-orange-500/10 text-orange-400 border-orange-500/30";
+      case "Concluída": return "bg-green-500/10 text-green-400 border-green-500/30";
+      case "Entregue": return "bg-teal-500/10 text-teal-400 border-teal-500/30";
+      case "Cancelada": return "bg-destructive/10 text-destructive border-destructive/30";
+      default: return "bg-muted text-muted-foreground border-border";
     }
   };
   
@@ -404,14 +405,14 @@ export default function ServiceOrdersPage() {
       {[...Array(5)].map((_, i) => (
          <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
           <div className="space-y-1.5 w-2/3">
-            <Skeleton className="h-5 w-1/3 rounded" />
-            <Skeleton className="h-4 w-2/3 rounded" />
-             <Skeleton className="h-3 w-1/2 rounded" />
+            <Skeleton className="h-5 w-1/3 rounded bg-muted/50" />
+            <Skeleton className="h-4 w-2/3 rounded bg-muted/50" />
+             <Skeleton className="h-3 w-1/2 rounded bg-muted/50" />
           </div>
           <div className="flex items-center space-x-2">
-            <Skeleton className="h-9 w-9 rounded-md" />
-            <Skeleton className="h-9 w-9 rounded-md" />
-            <Skeleton className="h-9 w-9 rounded-md" />
+            <Skeleton className="h-9 w-9 rounded-md bg-muted/50" />
+            <Skeleton className="h-9 w-9 rounded-md bg-muted/50" />
+            <Skeleton className="h-9 w-9 rounded-md bg-muted/50" />
           </div>
         </div>
       ))}
@@ -422,13 +423,13 @@ export default function ServiceOrdersPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-headline text-3xl font-semibold">Ordens de Serviço</h1>
+        <h1 className="font-headline text-3xl font-semibold text-foreground">Ordens de Serviço</h1>
         <Dialog open={isNewServiceOrderDialogOpen} onOpenChange={(isOpen) => {
           setIsNewServiceOrderDialogOpen(isOpen);
           if (!isOpen) resetFormFields(); // Reset if closing without saving
         }}>
           <DialogTrigger asChild>
-            <Button onClick={() => { resetFormFields(); setIsNewServiceOrderDialogOpen(true); }}>
+            <Button onClick={() => { resetFormFields(); setIsNewServiceOrderDialogOpen(true); }} className="bg-accent hover:bg-accent/90 text-accent-foreground">
               <PlusCircle className="mr-2 h-4 w-4" /> Criar Nova Ordem de Serviço
             </Button>
           </DialogTrigger>
@@ -641,7 +642,7 @@ export default function ServiceOrdersPage() {
                                     />
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <Button type="button" onClick={handleAddSoldProduct} className="w-full">
+                                    <Button type="button" onClick={handleAddSoldProduct} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
                                         <PlusCircle className="mr-2 h-4 w-4" /> Add
                                     </Button>
                                 </div>
@@ -684,7 +685,7 @@ export default function ServiceOrdersPage() {
                         
                         <div className="mt-6 text-right">
                             <p className="text-lg font-semibold">
-                                Valor Total da OS: <span className="text-primary">R$ {grandTotalDisplay}</span>
+                                Valor Total da OS: <span className="text-accent">R$ {grandTotalDisplay}</span>
                             </p>
                         </div>
                     </CardContent>
@@ -711,7 +712,7 @@ export default function ServiceOrdersPage() {
                             Cancelar
                         </Button>
                     </DialogClose>
-                    <Button type="submit" disabled={addServiceOrderMutation.isPending || updateServiceOrderMutation.isPending}>
+                    <Button type="submit" disabled={addServiceOrderMutation.isPending || updateServiceOrderMutation.isPending} className="bg-accent hover:bg-accent/90 text-accent-foreground">
                       {(addServiceOrderMutation.isPending || updateServiceOrderMutation.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {editingServiceOrder ? "Salvar Alterações" : "Criar O.S."}
                     </Button>
@@ -934,7 +935,7 @@ export default function ServiceOrdersPage() {
                                     />
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <Button type="button" onClick={handleAddSoldProduct} className="w-full">
+                                     <Button type="button" onClick={handleAddSoldProduct} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
                                         <PlusCircle className="mr-2 h-4 w-4" /> Add
                                     </Button>
                                 </div>
@@ -977,7 +978,7 @@ export default function ServiceOrdersPage() {
                         
                         <div className="mt-6 text-right">
                             <p className="text-lg font-semibold">
-                                Valor Total da OS: <span className="text-primary">R$ {grandTotalDisplay}</span>
+                                Valor Total da OS: <span className="text-accent">R$ {grandTotalDisplay}</span>
                             </p>
                         </div>
                     </CardContent>
@@ -1003,7 +1004,7 @@ export default function ServiceOrdersPage() {
                             Cancelar
                         </Button>
                     </DialogClose>
-                    <Button type="submit" disabled={updateServiceOrderMutation.isPending}>
+                    <Button type="submit" disabled={updateServiceOrderMutation.isPending} className="bg-accent hover:bg-accent/90 text-accent-foreground">
                       {updateServiceOrderMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Salvar Alterações
                     </Button>

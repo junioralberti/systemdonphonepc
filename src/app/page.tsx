@@ -86,7 +86,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm shadow-xl">
+      <Card className="w-full max-w-sm shadow-xl border-border">
         <CardHeader className="items-center text-center">
           <div className="mb-4">
             <Image
@@ -99,8 +99,8 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <CardTitle className="font-headline text-3xl">Sistema DonPhone</CardTitle>
-          <CardDescription>Por favor, entre para continuar</CardDescription>
+          <CardTitle className="font-headline text-3xl text-foreground">Sistema DonPhone</CardTitle>
+          <CardDescription className="text-muted-foreground">Por favor, entre para continuar</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -112,7 +112,7 @@ export default function LoginPage() {
               </Alert>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email" className="text-foreground/80">E-mail</Label>
               <Input
                 id="email"
                 type="email"
@@ -124,7 +124,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password" className="text-foreground/80">Senha</Label>
               <Input
                 id="password"
                 type="password"
@@ -135,7 +135,7 @@ export default function LoginPage() {
                 className="text-base"
               />
             </div>
-            <Button type="submit" className="w-full text-base" disabled={isLoggingIn || addUserMutation.isPending}>
+            <Button type="submit" className="w-full text-base bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoggingIn || addUserMutation.isPending}>
               {isLoggingIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Entrar
             </Button>
@@ -145,7 +145,7 @@ export default function LoginPage() {
               variant="link"
               type="button"
               onClick={() => setIsRegisterDialogOpen(true)}
-              className="text-sm px-0"
+              className="text-sm px-0 text-primary hover:text-primary/80"
               disabled={isLoggingIn || addUserMutation.isPending}
             >
               Cadastrar Novo Usuário
