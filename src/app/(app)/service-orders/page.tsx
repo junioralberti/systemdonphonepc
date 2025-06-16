@@ -303,7 +303,7 @@ export default function ServiceOrdersPage() {
       printWindow.document.write('<html><head><title>Ordem de Serviço</title>');
       printWindow.document.write('<style>');
       printWindow.document.write(`
-        body { font-family: 'Arial', sans-serif; margin: 20px; font-size: 10pt; color: #333; }
+        body { font-family: 'Arial', sans-serif; margin: 20px; font-size: 10pt; color: #333; font-weight: bold; }
         .print-container { width: 100%; max-width: 700px; margin: auto; }
         .establishment-header { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
         .logo-container { margin-bottom: 10px; flex-shrink: 0; }
