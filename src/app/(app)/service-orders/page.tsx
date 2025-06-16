@@ -305,10 +305,10 @@ export default function ServiceOrdersPage() {
       printWindow.document.write(`
         body { font-family: 'Arial', sans-serif; margin: 20px; font-size: 10pt; color: #333; }
         .print-container { width: 100%; max-width: 700px; margin: auto; }
-        .establishment-header { display: flex; align-items: flex-start; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
-        .logo-container { margin-right: 20px; flex-shrink: 0; }
-        .logo-container img { max-height: 180px; max-width: 540px; object-fit: contain; } /* Logo size increased */
-        .establishment-info { font-size: 9pt; line-height: 1.4; }
+        .establishment-header { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
+        .logo-container { margin-bottom: 10px; flex-shrink: 0; }
+        .logo-container img { max-height: 180px; max-width: 540px; object-fit: contain; display: block; margin: 0 auto; }
+        .establishment-info { font-size: 9pt; line-height: 1.4; text-align: center; }
         .establishment-info strong { font-size: 12pt; display: block; margin-bottom: 4px; color: #000; }
         .section-title { font-size: 12pt; font-weight: bold; margin-top: 15px; margin-bottom: 6px; padding-bottom: 3px; border-bottom: 1px solid #eee; color: #000; }
         .details-grid { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin-bottom: 10px; font-size: 9pt; }
@@ -1089,6 +1089,8 @@ export default function ServiceOrdersPage() {
     </div>
   );
 }
+
+    
 
     
 
