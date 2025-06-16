@@ -214,7 +214,6 @@ export default function CounterSalesPage() {
       businessPhone: "Seu Telefone",
       businessEmail: "Seu Email",
     };
-    // Use fixed local logo
     const fixedLogoUrl = "/donphone-login-visual.png"; 
 
     const printWindow = window.open('', '_blank', 'height=700,width=800');
@@ -226,7 +225,7 @@ export default function CounterSalesPage() {
         .print-container { width: 100%; max-width: 700px; margin: auto; }
         .establishment-header { display: flex; align-items: flex-start; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ccc; }
         .logo-container { margin-right: 20px; flex-shrink: 0; }
-        .logo-container img { max-height: 60px; max-width: 180px; object-fit: contain; }
+        .logo-container img { max-height: 180px; max-width: 540px; object-fit: contain; } /* Logo size increased */
         .establishment-info { font-size: 9pt; line-height: 1.4; }
         .establishment-info strong { font-size: 12pt; display: block; margin-bottom: 4px; color: #000; }
         .section-title { font-size: 12pt; font-weight: bold; margin-top: 20px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #eee; color: #000; }
@@ -700,6 +699,8 @@ export default function CounterSalesPage() {
     </div>
   );
 }
+    
+
     
 
     
