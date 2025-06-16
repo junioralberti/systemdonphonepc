@@ -11,7 +11,7 @@ import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { getEstablishmentSettings, saveEstablishmentSettings, type EstablishmentSettings } from "@/services/settingsService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building, Save, Loader2, UploadCloud, AlertTriangle, RotateCcw, Pencil } from "lucide-react";
+import { Building, Save, Loader2, AlertTriangle, RotateCcw, Pencil } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -27,9 +27,7 @@ export default function SettingsPage() {
   const [businessCnpj, setBusinessCnpj] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null | undefined>(undefined);
-  const [originalLogoUrl, setOriginalLogoUrl] = useState<string | null>(null);
+  // Logo related states removed
 
   const { data: establishmentSettings, isLoading: isLoadingSettings, error: settingsError, refetch: refetchEstablishmentSettings, isFetching: isFetchingSettings } = useQuery<EstablishmentSettings | null, Error>({
     queryKey: ["establishmentSettings"],
@@ -44,18 +42,15 @@ export default function SettingsPage() {
       setBusinessCnpj(settings.businessCnpj || "");
       setBusinessPhone(settings.businessPhone || "");
       setBusinessEmail(settings.businessEmail || "");
-      setLogoPreview(settings.logoUrl || null);
-      setOriginalLogoUrl(settings.logoUrl || null);
+      // Logo related state setting removed
     } else {
       setBusinessName("");
       setBusinessAddress("");
       setBusinessCnpj("");
       setBusinessPhone("");
       setBusinessEmail("");
-      setLogoPreview(null);
-      setOriginalLogoUrl(null);
+      // Logo related state setting removed
     }
-    setLogoFile(undefined); 
   };
   
   useEffect(() => {
@@ -73,15 +68,14 @@ export default function SettingsPage() {
 
 
   const saveSettingsMutation = useMutation({
-    mutationFn: ({ settingsData, logoToUpload }: { settingsData: Omit<EstablishmentSettings, 'updatedAt' | 'logoUrl'>, logoToUpload?: File | null }) => 
-      saveEstablishmentSettings(settingsData, logoToUpload),
+    mutationFn: (settingsData: Omit<EstablishmentSettings, 'updatedAt' | 'logoUrl'>) => 
+      saveEstablishmentSettings(settingsData),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["establishmentSettings"] });
       toast({ title: "Sucesso!", description: "Dados do estabelecimento atualizados." });
       
-      // Update form states with potentially new logoUrl from server and reset file input
-      populateFormFields(data); // This will reset logoFile to undefined
-      setIsEditingEstablishmentData(false); // Switch back to view mode
+      populateFormFields(data); 
+      setIsEditingEstablishmentData(false); 
     },
     onError: (error: Error) => {
       console.error("Erro ao salvar dados do estabelecimento na página:", error);
@@ -94,22 +88,6 @@ export default function SettingsPage() {
     },
   });
 
-  const handleLogoChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 800 * 1024) { 
-        toast({ title: "Arquivo Muito Grande", description: "O logo deve ter no máximo 800KB.", variant: "destructive" });
-        return;
-      }
-      setLogoFile(file);
-      setLogoPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleRemoveLogo = () => {
-    setLogoFile(null); 
-    setLogoPreview(null);
-  };
 
   const handleSaveEstablishmentData = async (e: FormEvent) => {
     e.preventDefault();
@@ -120,7 +98,7 @@ export default function SettingsPage() {
       businessPhone,
       businessEmail,
     };
-    saveSettingsMutation.mutate({ settingsData: settingsToSave, logoToUpload: logoFile });
+    saveSettingsMutation.mutate(settingsToSave);
   };
 
   const handleCancelEdit = () => {
@@ -130,8 +108,9 @@ export default function SettingsPage() {
 
   const EstablishmentDataSkeleton = () => (
     <CardContent className="space-y-6">
-      <div className="flex items-start gap-4">
-        <Skeleton className="w-28 h-10 rounded-md" />
+       <div className="flex items-start gap-4">
+        {/* Placeholder for where logo might have been, or adjust layout */}
+        <Skeleton className="w-28 h-10 rounded-md" /> 
         <div className="space-y-1.5">
           <Skeleton className="h-6 w-48" />
           <Skeleton className="h-4 w-64" />
@@ -239,40 +218,7 @@ export default function SettingsPage() {
                   <Input id="businessEmail" type="email" value={businessEmail} onChange={(e) => setBusinessEmail(e.target.value)} placeholder="contato@sualoja.com" />
                 </div>
               </div>
-              <div className="space-y-3">
-                <Label htmlFor="logoUpload">Logo do Estabelecimento</Label>
-                {logoPreview && (
-                  <div className="mb-3 rounded-md border border-dashed p-3 inline-block relative bg-muted/20">
-                    <Image 
-                      src={logoPreview} 
-                      alt="Prévia do Logo" 
-                      width={180} 
-                      height={60} 
-                      className="max-h-16 object-contain" 
-                      data-ai-hint="company logo placeholder"
-                      unoptimized={logoPreview.startsWith('blob:')} 
-                      onError={() => {
-                        setLogoPreview(null); 
-                        toast({title: "Erro de Logo", description: "Não foi possível carregar a prévia do logo.", variant: "destructive"});
-                      }}
-                    />
-                  </div>
-                )}
-                <div className="flex flex-col sm:flex-row gap-3 items-start">
-                  <Button asChild variant="outline" className="w-full sm:w-auto">
-                    <Label className="cursor-pointer">
-                      <UploadCloud className="mr-2 h-4 w-4" /> {logoPreview ? "Alterar Logo" : "Carregar Logo"}
-                      <Input id="logoUpload" type="file" accept="image/png, image/jpeg, image/webp, image/svg+xml" className="sr-only" onChange={handleLogoChange} />
-                    </Label>
-                  </Button>
-                  {(logoPreview || logoFile === null) && ( 
-                    <Button type="button" variant="ghost" onClick={handleRemoveLogo} className="text-destructive hover:text-destructive w-full sm:w-auto">
-                      Remover Logo
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">Recomendado: PNG, JPG, WEBP ou SVG. Máx 800KB. Idealmente 180x60 pixels.</p>
-              </div>
+              {/* Logo upload section removed */}
             </CardContent>
             <CardFooter className="border-t pt-6 flex flex-col sm:flex-row justify-end gap-2">
               {establishmentSettings && ( 
@@ -293,26 +239,10 @@ export default function SettingsPage() {
         ) : establishmentSettings ? (
           <>
             <CardContent className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-start gap-4">
-                {logoPreview ? (
-                  <Image 
-                    src={logoPreview} 
-                    alt="Logo do Estabelecimento" 
-                    width={180} 
-                    height={60} 
-                    className="rounded-md object-contain bg-muted/20 p-1 border max-h-20" 
-                    data-ai-hint="company logo"
-                    unoptimized={logoPreview.startsWith('blob:')}
-                  />
-                ) : (
-                  <div className="w-full sm:w-[180px] h-[60px] flex items-center justify-center bg-muted rounded-md text-muted-foreground border">
-                    <Building className="h-8 w-8" />
-                  </div>
-                )}
-                <div className="mt-2 sm:mt-0">
-                  <h3 className="text-xl font-semibold">{businessName || <span className="text-muted-foreground italic">Nome não definido</span>}</h3>
-                  <p className="text-sm text-muted-foreground">{businessAddress || <span className="italic">Endereço não definido</span>}</p>
-                </div>
+              {/* No logo display here */}
+              <div className="mt-2 sm:mt-0">
+                <h3 className="text-xl font-semibold">{businessName || <span className="text-muted-foreground italic">Nome não definido</span>}</h3>
+                <p className="text-sm text-muted-foreground">{businessAddress || <span className="italic">Endereço não definido</span>}</p>
               </div>
               <Separator />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
@@ -332,3 +262,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    

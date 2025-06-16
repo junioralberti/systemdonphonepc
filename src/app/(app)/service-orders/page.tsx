@@ -29,7 +29,7 @@ type DeviceType = "Celular" | "Notebook" | "Tablet" | "Placa" | "Outro";
 const deviceTypes: DeviceType[] = ["Celular", "Notebook", "Tablet", "Placa", "Outro"];
 
 interface SoldProductItem extends SoldProductItemInput {
-  tempId: string; // Used for client-side list management before saving
+  tempId: string; 
 }
 
 
@@ -42,7 +42,6 @@ export default function ServiceOrdersPage() {
   const queryClient = useQueryClient();
   const [establishmentDataForPrint, setEstablishmentDataForPrint] = useState<EstablishmentSettings | null>(null);
   
-  // States for the new/edit OS form
   const [formOsNumber, setFormOsNumber] = useState("Automático");
   const [formOpeningDate, setFormOpeningDate] = useState(new Date().toLocaleString('pt-BR'));
   const [deliveryForecastDate, setDeliveryForecastDate] = useState("");
@@ -296,8 +295,9 @@ export default function ServiceOrdersPage() {
       businessCnpj: "Seu CNPJ",
       businessPhone: "Seu Telefone",
       businessEmail: "Seu Email",
-      logoUrl: "https://placehold.co/180x60.png?text=Sua+Logo"
     };
+    // Use fixed local logo
+    const fixedLogoUrl = "/donphone-login-visual.png";
 
     const printWindow = window.open('', '_blank', 'height=700,width=800');
     if (printWindow) {
@@ -323,12 +323,8 @@ export default function ServiceOrdersPage() {
       `);
       printWindow.document.write('</style></head><body><div class="print-container">');
 
-      // Cabeçalho do Estabelecimento
       printWindow.document.write('<div class="establishment-header">');
-      if (establishmentDataToUse.logoUrl) {
-        const logoHint = establishmentDataToUse.logoUrl.includes('placehold.co') ? 'data-ai-hint="company logo placeholder"' : 'data-ai-hint="company logo"';
-        printWindow.document.write(`<div class="logo-container"><img src="${establishmentDataToUse.logoUrl}" alt="Logo do Estabelecimento" ${logoHint} /></div>`);
-      }
+      printWindow.document.write(`<div class="logo-container"><img src="${fixedLogoUrl}" alt="Logo do Estabelecimento" data-ai-hint="company brand illustration" /></div>`);
       printWindow.document.write('<div class="establishment-info">');
       printWindow.document.write(`<strong>${establishmentDataToUse.businessName || "Nome da Empresa"}</strong><br/>`);
       printWindow.document.write(`${establishmentDataToUse.businessAddress || "Endereço da Empresa"}<br/>`);
@@ -340,7 +336,6 @@ export default function ServiceOrdersPage() {
 
       printWindow.document.write(`<h1 class="os-title">ORDEM DE SERVIÇO Nº: ${order.osNumber || 'N/A'}</h1>`);
       
-      // Data de Abertura
       const openingDateFormatted = order.openingDate instanceof Date 
         ? format(order.openingDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) 
         : (order.openingDate ? new Date(String(order.openingDate)).toLocaleString('pt-BR') : 'N/A');
@@ -348,28 +343,23 @@ export default function ServiceOrdersPage() {
       printWindow.document.write(`<div><strong>Data de Abertura:</strong> ${openingDateFormatted}</div>`);
       printWindow.document.write('</div>');
       
-      // Nome do Cliente
       printWindow.document.write('<div class="section-title">Cliente</div>');
       printWindow.document.write('<div class="details-grid" style="grid-template-columns: 1fr;">');
       printWindow.document.write(`<div><strong>Nome:</strong> ${order.clientName || 'N/A'}</div>`);
       printWindow.document.write('</div>');
 
-      // Equipamento
       printWindow.document.write('<div class="section-title">Equipamento</div>');
       printWindow.document.write('<div class="details-grid" style="grid-template-columns: 1fr;">');
       printWindow.document.write(`<div><strong>Marca/Modelo:</strong> ${order.deviceBrandModel || 'N/A'}</div>`);
       printWindow.document.write('</div>');
 
-      // Problema Relatado
       printWindow.document.write('<div class="section-title">Problema Relatado</div>');
       printWindow.document.write('<div class="text-area-content">');
       printWindow.document.write(order.problemReportedByClient || 'Nenhum problema relatado.');
       printWindow.document.write('</div>');
       
-      // Valor Total
       printWindow.document.write(`<div class="grand-total">VALOR TOTAL DA OS: R$ ${order.grandTotalValue !== undefined ? Number(order.grandTotalValue).toFixed(2).replace('.', ',') : '0,00'}</div>`);
 
-      // Assinatura
       printWindow.document.write('<div class="signature-area">');
       printWindow.document.write('<div class="signature-line"></div>');
       printWindow.document.write(`<div>Assinatura do Cliente (${order.clientName || ''})</div>`);
@@ -388,10 +378,9 @@ export default function ServiceOrdersPage() {
   };
   
   const getStatusColor = (status: ServiceOrderStatus) => {
-    // Using text and border colors from the new theme
     switch (status) {
       case "Aberta": return "bg-primary/10 text-primary border-primary/30";
-      case "Em andamento": return "bg-blue-500/10 text-blue-400 border-blue-500/30"; // Example, assuming blue is for "in progress"
+      case "Em andamento": return "bg-blue-500/10 text-blue-400 border-blue-500/30"; 
       case "Aguardando peça": return "bg-orange-500/10 text-orange-400 border-orange-500/30";
       case "Concluída": return "bg-green-500/10 text-green-400 border-green-500/30";
       case "Entregue": return "bg-teal-500/10 text-teal-400 border-teal-500/30";
@@ -426,14 +415,13 @@ export default function ServiceOrdersPage() {
         <h1 className="font-headline text-3xl font-semibold text-foreground">Ordens de Serviço</h1>
         <Dialog open={isNewServiceOrderDialogOpen} onOpenChange={(isOpen) => {
           setIsNewServiceOrderDialogOpen(isOpen);
-          if (!isOpen) resetFormFields(); // Reset if closing without saving
+          if (!isOpen) resetFormFields(); 
         }}>
           <DialogTrigger asChild>
             <Button onClick={() => { resetFormFields(); setIsNewServiceOrderDialogOpen(true); }} className="bg-accent hover:bg-accent/90 text-accent-foreground">
               <PlusCircle className="mr-2 h-4 w-4" /> Criar Nova Ordem de Serviço
             </Button>
           </DialogTrigger>
-          {/* Dialog Content for New/Edit OS - Extracted for brevity, assuming it's the same structure */}
           <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
             <DialogHeader>
               <DialogTitle>{editingServiceOrder ? "Editar Ordem de Serviço" : "Nova Ordem de Serviço"}</DialogTitle>
@@ -444,7 +432,6 @@ export default function ServiceOrdersPage() {
             <form onSubmit={handleSubmitServiceOrder}>
               <ScrollArea className="h-[75vh] p-1 pr-3">
                 <div className="space-y-6 p-2">
-                  {/* Campos Gerais da OS */}
                   <Card>
                     <CardHeader><CardTitle className="text-xl">Dados Gerais da OS</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -485,7 +472,6 @@ export default function ServiceOrdersPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Dados do Cliente */}
                   <Card>
                     <CardHeader><CardTitle className="text-xl">Dados do Cliente</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -516,7 +502,6 @@ export default function ServiceOrdersPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Informações do Aparelho */}
                   <Card>
                     <CardHeader><CardTitle className="text-xl">Informações do Aparelho</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -552,7 +537,6 @@ export default function ServiceOrdersPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Problemas e Diagnóstico */}
                   <Card>
                     <CardHeader><CardTitle className="text-xl">Problemas e Diagnóstico</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -722,10 +706,9 @@ export default function ServiceOrdersPage() {
           </DialogContent>
         </Dialog>
 
-         {/* Dialog for Editing - Triggered from table */}
         <Dialog open={isEditServiceOrderDialogOpen} onOpenChange={(isOpen) => {
           setIsEditServiceOrderDialogOpen(isOpen);
-          if (!isOpen) resetFormFields(); // Reset if closing without saving
+          if (!isOpen) resetFormFields(); 
         }}>
              <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl">
             <DialogHeader>
@@ -737,7 +720,6 @@ export default function ServiceOrdersPage() {
             <form onSubmit={handleSubmitServiceOrder}>
               <ScrollArea className="h-[75vh] p-1 pr-3">
                 <div className="space-y-6 p-2">
-                  {/* Campos Gerais da OS */}
                   <Card>
                     <CardHeader><CardTitle className="text-xl">Dados Gerais da OS</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -778,7 +760,6 @@ export default function ServiceOrdersPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Dados do Cliente */}
                   <Card>
                     <CardHeader><CardTitle className="text-xl">Dados do Cliente</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -809,7 +790,6 @@ export default function ServiceOrdersPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Informações do Aparelho */}
                   <Card>
                     <CardHeader><CardTitle className="text-xl">Informações do Aparelho</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -845,7 +825,6 @@ export default function ServiceOrdersPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Problemas e Diagnóstico */}
                   <Card>
                     <CardHeader><CardTitle className="text-xl">Problemas e Diagnóstico</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -1111,3 +1090,5 @@ export default function ServiceOrdersPage() {
     </div>
   );
 }
+
+    

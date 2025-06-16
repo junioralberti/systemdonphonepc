@@ -204,8 +204,8 @@ export default function CounterSalesPage() {
     items: CartItemInput[]; 
     paymentMethod?: PaymentMethod | null;
     totalAmount: number;
-    status: SaleStatus; // Added status for print
-    cancellationReason?: string | null; // Added for print
+    status: SaleStatus; 
+    cancellationReason?: string | null; 
   }) => {
     const establishmentDataToUse = establishmentDataForPrint || {
       businessName: "Nome da Empresa Aqui",
@@ -213,8 +213,9 @@ export default function CounterSalesPage() {
       businessCnpj: "Seu CNPJ",
       businessPhone: "Seu Telefone",
       businessEmail: "Seu Email",
-      logoUrl: "https://placehold.co/180x60.png?text=Sua+Logo"
     };
+    // Use fixed local logo
+    const fixedLogoUrl = "/donphone-login-visual.png"; 
 
     const printWindow = window.open('', '_blank', 'height=700,width=800');
     if (printWindow) {
@@ -246,10 +247,7 @@ export default function CounterSalesPage() {
       printWindow.document.write('</style></head><body><div class="print-container">');
 
       printWindow.document.write('<div class="establishment-header">');
-      if (establishmentDataToUse.logoUrl) {
-        const logoHint = establishmentDataToUse.logoUrl.includes('placehold.co') ? 'data-ai-hint="company logo placeholder"' : 'data-ai-hint="company logo"';
-        printWindow.document.write(`<div class="logo-container"><img src="${establishmentDataToUse.logoUrl}" alt="Logo" ${logoHint} /></div>`);
-      }
+      printWindow.document.write(`<div class="logo-container"><img src="${fixedLogoUrl}" alt="Logo" data-ai-hint="company brand illustration" /></div>`);
       printWindow.document.write('<div class="establishment-info">');
       printWindow.document.write(`<strong>${establishmentDataToUse.businessName || "Nome da Empresa"}</strong><br/>`);
       printWindow.document.write(`${establishmentDataToUse.businessAddress || "Endereço da Empresa"}<br/>`);
@@ -321,7 +319,7 @@ export default function CounterSalesPage() {
       items: cartItems.map(({ id, sku, ...item }) => item), 
       paymentMethod: paymentMethod || null,
       totalAmount: calculateTotal(),
-      status: "Concluída", // Explicitly set
+      status: "Concluída", 
     };
     
     addSaleMutation.mutate(saleToSave);
@@ -524,7 +522,7 @@ export default function CounterSalesPage() {
                 items: cartItems.map(({id, sku, ...item}) => item),
                 paymentMethod,
                 totalAmount: calculateTotal(),
-                status: "Concluída", // Assuming preview is for a completed sale
+                status: "Concluída", 
             })} 
             disabled={cartItems.length === 0}
             className="w-full sm:w-auto"
@@ -702,4 +700,6 @@ export default function CounterSalesPage() {
     </div>
   );
 }
+    
+
     
