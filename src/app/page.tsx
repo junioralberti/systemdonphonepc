@@ -90,11 +90,11 @@ export default function LoginPage() {
         <CardHeader className="items-center text-center">
           <div className="mb-4">
             <Image
-              src="/donphone-login-visual.png" 
-              alt="DonPhone Visual"
+              src="/logoprincipal.png" 
+              alt="DonPhone Logo Principal"
               width={240} 
               height={240}
-              data-ai-hint="company brand illustration"
+              data-ai-hint="company logo"
               className="mx-auto"
               priority
             />
