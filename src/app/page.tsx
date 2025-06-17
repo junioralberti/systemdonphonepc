@@ -92,15 +92,15 @@ export default function LoginPage() {
             <Image
               src="/logoprincipal.png" 
               alt="DonPhone Logo Principal"
-              width={240} 
-              height={240}
+              width={360} 
+              height={360}
               data-ai-hint="company logo"
               className="mx-auto"
               priority
             />
           </div>
-          <CardTitle className="font-headline text-3xl text-foreground">Sistema DonPhone</CardTitle>
-          <CardDescription className="text-muted-foreground">Por favor, entre para continuar</CardDescription>
+          {/* <CardTitle className="font-headline text-3xl text-foreground">Sistema DonPhone</CardTitle> */}
+          <CardDescription className="text-muted-foreground pt-2">Por favor, entre para continuar</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
