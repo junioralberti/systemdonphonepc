@@ -88,7 +88,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm shadow-xl border-border">
         <CardHeader className="items-center text-center">
-          <div className="mb-4">
+          <div className="mb-2">
             <Image
               src="/logoprincipal.png" 
               alt="DonPhone Logo Principal"
